@@ -6,8 +6,10 @@ Implemented for the package-owned v1 protocol and standalone-adoption surface.
 The design addresses read-modify-write races, shared role-level cursors,
 non-append-only receipts, trusted identity binding, delayed ULID publication,
 partial fan-out recovery, and lock-owner fencing. Package-owned neutral guidance
-and trusted footer status are included; Herdr wake-ups and persona policy remain
-optional external integrations, and immutable claim events remain deferred.
+and trusted footer status are included. A successful Herdr dogfood run now
+motivates required mission-initialization and generated-launch UX; automatic
+runtime wake-up adapters, persona policy, and immutable claim events remain
+deferred.
 
 ## Goal
 
@@ -19,21 +21,28 @@ without becoming a full orchestration platform.
 ## Non-goals
 
 - Do not build a chat server or a full task database.
-- Do not replace Herdr for live pane/agent control, or pi-presets for
-  persona/role selection.
+- Do not replace Herdr for live tab/agent control, or pi-presets for persona and
+  model selection. Mycelial may generate an inspectable, user-invoked launcher
+  that composes those systems without moving process supervision into mailbox
+  runtime code.
 - Do not rely on ephemeral terminal output as the source of truth.
 - Do not couple mailbox storage to supervisor policy.
 - Do not trust the model to self-report identity (see Identity, below).
 
 ## Layering
 
-1. **Optional Herdr integration** — a best-effort live wake-up after durable send.
-2. **Operating guidance** — the package skill, repository guidance, or optional personas.
-3. **File-backed mission mailbox** — durable coordination state and source of truth.
+1. **User-invoked launch composition** — generated shell instructions that open
+   Herdr tabs and start role-bound Pi agents.
+2. **Optional live notification** — a best-effort wake-up after durable send.
+3. **Operating guidance** — the package skill, repository guidance, or optional
+   personas.
+4. **File-backed mission mailbox** — durable coordination state and source of
+   truth.
 
-The mailbox has no preset dependency. Protocol-operating guidance stays outside
-the storage layer and may come from the neutral package skill, project guidance,
-or optional persona instructions.
+The mailbox has no Herdr or preset dependency. Launch composition and
+protocol-operating guidance stay outside the storage layer and may use Herdr,
+pi-presets, the neutral package skill, project guidance, or optional persona
+instructions.
 
 ## Identity and startup binding
 
@@ -56,13 +65,38 @@ or `role` as model-supplied parameters — a tool call that tried to specify its
 own identity would be rejected. This closes the gap where injected content
 encountered mid-task could otherwise induce a forged sender.
 
-Role is not inferred from the pi-presets preset name. If preset-to-role
-inference is wanted later, it needs an explicit status/change event contract
-from pi-presets, not a name-string convention.
+Role is not inferred from the pi-presets preset name. A generated launcher may
+read optional preset metadata for a role and pass both values independently:
+`--mycelial-role <role>` establishes trusted mailbox identity, while
+`--presets:preset <preset>` asks pi-presets to select runtime behavior. Model,
+provider, and thinking-level policy remain outside Mycelial.
 
 All mission, role, task, and message identifiers are validated (charset,
 length) before being used to construct a filesystem path, since they become
 path segments.
+
+## Planned mission initialization and launch UX
+
+Mission content is human-owned or human-approved, even when an LLM drafts it
+during discovery. An unbound Pi command will act as the approval boundary: it
+copies or generates mission control files, reports their paths for editing, and
+generates an inspectable `launch-herdr.sh` without executing it.
+
+The launcher opens one Herdr tab per configured role, starts every role by
+default, and permits an explicit subset. Herdr agent names initially match role
+names. Each Pi process receives trusted mission and role flags. Optional preset
+metadata is forwarded with `--presets:preset`; all other runtime selection stays
+with Pi and pi-presets.
+
+A pathless `agent_mission_read` tool will let a bound agent explicitly load the
+trusted mission document without placing it in every model turn or accepting a
+model-supplied path. This keeps launch prompts short while preserving the rule
+that `mission.md` supplements but never overrides repository `AGENTS.md`.
+
+The generated launcher is user-invoked composition, not mailbox process
+control. It may perform startup prompts and best-effort wake-ups, but durable
+mail remains authoritative and always precedes a notification. See
+[`mission-ux-design.md`](mission-ux-design.md) for the accepted UX contract.
 
 ## Mission layout
 
@@ -71,7 +105,7 @@ are either rebuildable from immutable records, or scoped per-session so only
 one writer ever touches them.
 
 ```text
-~/agent-work/missions/<mission-id>/
+~/mycelial/missions/<mission-id>/
   mission.md
   agents.json                     # static role/persona config
   repos.json                      # cross-codebase aliases

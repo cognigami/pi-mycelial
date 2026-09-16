@@ -17,7 +17,7 @@ export interface MycelialConfig {
   lockBackoffMs: number;
 }
 export const DEFAULT_CONFIG: MycelialConfig = {
-  missionRoot: join(homedir(), "agent-work", "missions"),
+  missionRoot: join(homedir(), "mycelial", "missions"),
   heartbeatIntervalMs: 30_000,
   presenceTtlMs: 90_000,
   defaultLeaseMs: 600_000,

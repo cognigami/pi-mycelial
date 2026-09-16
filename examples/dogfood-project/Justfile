@@ -1,0 +1,6 @@
+set script-interpreter := ["bash", "-eu", "-o", "pipefail"]
+
+check:
+  node check.mjs
+
+test: check

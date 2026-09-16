@@ -78,7 +78,7 @@ State explicitly:
 Include:
 
 1. `just install`.
-2. Minimal mission creation under `~/agent-work/missions/<mission-id>/`.
+2. Minimal mission creation under `~/mycelial/missions/<mission-id>/`.
 3. `agents.json` setup.
 4. Optional `repos.json` explanation.
 5. Manual launches with `--mycelial-mission` and `--mycelial-role`.

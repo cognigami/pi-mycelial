@@ -2,15 +2,18 @@
 
 ## Status
 
-Implemented for the package-owned v1 layers (work packages 0–10). Work package
-11 remains intentionally deferred because it belongs in separate Herdr and
-pi-presets changes. The approved standalone-adoption follow-up is complete: the
-package now includes managed neutral guidance, a sample mission and short setup
-guide, operator-only trusted footer binding, and actionable read formatting.
-It adds no receiver-side polling notifier or process-control integration. The work is ordered from
-the logically innermost correctness loops—validated records and filesystem
-publication—outward through mailbox workflows, Pi tools, lifecycle integration,
-and finally Herdr/persona integration.
+Implemented for the package-owned v1 layers (work packages 0–10), the approved
+standalone-adoption follow-up, and the WP11A Herdr dogfood validation. The
+package includes managed neutral guidance, sample missions, a short setup guide,
+operator-only trusted footer binding, and actionable read formatting. The
+mailbox runtime adds no receiver-side polling or process control; the repository
+now includes a user-run dogfood launcher that composes Herdr and Pi externally.
+
+The successful dogfood run completed durable send, read, acknowledgement,
+claim, reply, done, release, and coordinator verification across two agents.
+That evidence promotes mission initialization and one-command Herdr launch from
+a deferred convenience to required WP12 work. Automatic post-send runtime
+adapters and persona-specific policy remain separate optional integrations.
 
 ## Delivery decision
 
@@ -112,7 +115,7 @@ identity + runtime lifecycle
               ↓
 managed package composition
               ↓
-personas, notifications, and Herdr integration
+manual Herdr validation and optional external adapters
 ```
 
 No inner layer imports Pi APIs. The storage layer does not know about prompts,
@@ -389,7 +392,7 @@ errors, and proven-dead-owner recovery.
 
 Use `pi-extension-kit/files` for global JSONC config and logging. Initial config:
 
-- mission root, defaulting to `~/agent-work/missions`;
+- mission root, defaulting to `~/mycelial/missions`;
 - heartbeat interval and presence TTL;
 - default and allowed claim lease durations;
 - read count/body limits;
@@ -510,42 +513,103 @@ configured model-facing limit.
 **Exit criterion:** build, unit tests, concurrency tests, integration tests, and
 Biome all pass in one `just build` run.
 
-## Work package 11 — Outer integrations
+## Work package 11 — Live coordination validation and optional adapters
 
-These are deliberately last because they consume the stable mailbox API.
+Mycelial does not require Herdr for durable mail, receipts, claims, roster state,
+or manually prompted agents. Herdr is the chosen optional live transport for
+starting and waking active agents because receiver-side polling was explicitly
+rejected.
 
-### Persona guidance
+### 11A — Herdr dogfood — complete
 
-Update pi-presets persona sources in a separate change, using the
-persona-maintenance workflow. Teach each role:
+The two-agent message-ordering mission used matching Herdr names and Mycelial
+roles. A user-run shell launcher opened one tab per role, started bound Pi
+sessions, and issued body-free wake-ups only after durable operations. The run
+completed:
 
-- when to poll;
-- acknowledgement expectations by priority;
-- claim renewal/release checkpoints;
-- escalation and handoff behavior.
+- request send, read, acknowledgement, and exclusive claim;
+- implementation and a sandbox-compatible `just check`;
+- linked durable reply, request completion, and claim release;
+- coordinator read, independent validation, and final acknowledgement.
 
-Do not encode these policies in mailbox tool execution.
+The first attempt also exposed useful friction: direct Bun execution is not a
+supported agent workflow, terminal completion is not mission success, and
+launcher output must be distinguished from durable protocol state. The second
+run passed after moving the exercise behind a Node-backed `just` recipe.
 
-### Notification delivery
+**Exit criterion:** met. The coordinator received and triaged an independently
+implemented result through a complete Mycelial lifecycle, with Herdr used only
+for launch and live wake-up.
 
-- First inspect and characterize the existing Herdr turn-completion watcher.
-- Add a narrow adapter that emits body-free mailbox notifications.
-- Map `now`/`safe` to Pi steering, `task-boundary` to follow-up, and
-  `next-checkpoint` to no triggered turn.
-- Deduplicate notifications independently per receiving session.
-- Keep the mailbox extension usable through explicit polling when the watcher is
-  absent.
+### 11B — Optional automatic runtime wake-up adapter
 
-### Herdr launcher integration
+Do not conflate runtime notification automation with mission launch automation;
+required launch work is WP12. A future post-send adapter remains optional and
+must be justified by repeated evidence that agent-issued or launcher-issued
+pokes are unreliable. If implemented, keep it outside mailbox storage and
+resolve:
 
-- Pass mission and role binding explicitly when starting Pi.
-- Pass or expose the authoritative Herdr session identity when available.
-- Use roster state only for discovery/status; mailbox addressing remains by
-  role.
-- Add fallback prompting only after native notification behavior is stable.
+- role-to-Herdr-agent mapping when names differ;
+- multiple live sessions for one role;
+- busy, blocked, missing, and remote agents;
+- which priorities or interrupt modes should trigger a poke;
+- failure reporting and duplicate suppression.
 
-**Exit criterion:** removing Herdr and pi-presets integrations still leaves a
-fully functional durable mailbox extension.
+The adapter must preserve the ordering invariant: durable send first, optional
+poke second.
+
+### 11C — Optional persona guidance
+
+The package-owned `mycelial-coordination` skill is the neutral baseline. Preset
+or persona-specific routing, review, and escalation policy remains an optional
+separate change and is not required for standalone operation.
+
+**Exit criterion:** removing Herdr and all persona integrations still leaves a
+fully functional durable mailbox extension for manually prompted agents.
+
+## Work package 12 — Mission initialization and generated Herdr launch
+
+Users should not have to create every control file and launch every role by
+hand. Promote the dogfood launcher pattern into a supported, user-invoked
+mission workflow. See [`mission-ux-design.md`](mission-ux-design.md).
+
+### 12A — Explicit mission read
+
+Add a pathless `agent_mission_read` tool. It derives the bound mission document
+from trusted runtime state, accepts no model-supplied identity or path, and
+returns bounded mission content. Update the package skill to call it during
+startup rather than requiring a long absolute path in every launch prompt.
+
+### 12B — Pi mission initializer
+
+Register an unbound `/mycelial init` command as an operator approval boundary at
+the end of a discovery-style conversation. It creates a validated mission under
+`~/mycelial/missions/<mission-id>/`, reports every generated path, refuses
+implicit overwrite, and may copy a user-approved Markdown draft. Generate at
+least `mission.md`, `agents.json`, `repos.json`, and `launch-herdr.sh`.
+
+### 12C — Generated Herdr launcher
+
+The generated, inspectable shell script must:
+
+- require a Herdr-managed control shell and leave that control tab intact;
+- launch all configured roles by default, with an option to select a subset;
+- open one Herdr tab per role and start a role-named Pi agent in its first pane;
+- pass only trusted Mycelial mission/role flags plus an optional role preset;
+- append `--presets:preset <name>` when `agents.json` defines one;
+- leave model, provider, and thinking-level selection to Pi and pi-presets;
+- provide a short startup prompt that reads the mission, refreshes the roster,
+  and checks mail;
+- shell-quote generated values, fail visibly on collisions, and preserve created
+  tabs for inspection after failure;
+- report mission, tab, pane, and agent identifiers.
+
+Generating the script belongs to Mycelial; executing it remains an explicit user
+action. The mailbox runtime does not spawn or supervise processes.
+
+**Exit criterion:** after a discovery conversation, the user can approve one Pi
+command and run one generated script to create the mission and launch all of its
+agents without issuing per-agent Herdr or Pi commands manually.
 
 ## Suggested change sequence
 
@@ -559,8 +623,13 @@ Keep the implementation reviewable as a stack of independently valid changes:
 6. Identity, roster, heartbeat, and inert-unbound lifecycle.
 7. Seven Pi tool definitions and composition.
 8. End-to-end fault/concurrency hardening and documentation.
-9. Persona guidance, watcher adapter, and Herdr launcher integration as separate
-   cross-repository changes.
+9. Standalone guidance, sample mission, footer status, and actionable read
+   formatting.
+10. Herdr dogfood and complete durable lifecycle validation.
+11. Mission initialization, explicit mission reading, and generated multi-tab
+    Herdr launch.
+12. Only then decide whether an automatic runtime wake-up adapter or
+    persona-specific guidance is justified.
 
 Do not begin an outer change while an inner layer still has unresolved
 concurrency or recovery semantics.
@@ -579,5 +648,7 @@ concurrency or recovery semantics.
 - Tool output is bounded and schemas reject identity injection.
 - The extension is inert outside explicitly bound mission sessions.
 - Managed build/install, tests, lint, and the full multi-agent scenario pass.
+- A user can initialize a mission and launch all configured roles without
+  issuing per-agent launch commands.
 - Notification and persona policy remain optional outer integrations rather than
   storage dependencies.

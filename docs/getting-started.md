@@ -19,10 +19,10 @@ Mycelial works with ordinary, manually launched Pi sessions. A mission is a coor
 
 ```sh
 just install
-mkdir -p ~/agent-work/missions/release-42
+mkdir -p ~/mycelial/missions/release-42
 ```
 
-Create `~/agent-work/missions/release-42/mission.md` with the bounded goal, role responsibilities, coordination conventions, and links or paths to canonical repository artifacts. Then create the static roster:
+Create `~/mycelial/missions/release-42/mission.md` with the bounded goal, role responsibilities, coordination conventions, and links or paths to canonical repository artifacts. Then create the static roster:
 
 ```json
 {
@@ -44,7 +44,7 @@ pi --mycelial-mission release-42 --mycelial-role reviewer
 
 A useful initial prompt is:
 
-> You are the implementer for mission `release-42`. Read `~/agent-work/missions/release-42/mission.md` and this repository's `AGENTS.md`. Load the `mycelial-coordination` skill, refresh `agent_roster`, then read `agent_mail_read` before starting work.
+> You are the implementer for mission `release-42`. Read `~/mycelial/missions/release-42/mission.md` and this repository's `AGENTS.md`. Load the `mycelial-coordination` skill, refresh `agent_roster`, then read `agent_mail_read` before starting work.
 
 The footer shows the trusted binding as `implementer@release-42` when a compatible footer extension is present. The session ID is never displayed or added to model context.
 

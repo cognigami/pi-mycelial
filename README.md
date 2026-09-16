@@ -15,7 +15,7 @@ The managed artifact is `dist/index.js`. Set `PI_CODING_AGENT_DIR` to install in
 
 ## Mission setup
 
-The default mission base is `~/agent-work/missions` (override `missionRoot` in `~/.config/pi-extensions/mycelial/*.jsonc`). A mission must already contain:
+The default mission base is `~/mycelial/missions` (override `missionRoot` in `~/.config/pi-extensions/mycelial/*.jsonc`). A mission must already contain:
 
 ```text
 <missionRoot>/<mission-id>/
