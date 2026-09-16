@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createExtensionFiles } from "pi-extension-kit/files";
+import { reportMycelialFooterSlot } from "./footer-slot";
 import { MycelialRuntime } from "./runtime";
 import { createAckTool } from "./tool/ack";
 import { createReadTool } from "./tool/read";
@@ -29,6 +30,7 @@ export default function mycelialExtension(pi: ExtensionAPI): void {
   });
 
   pi.on("session_start", async (_event, ctx) => {
+    reportMycelialFooterSlot(pi.events);
     try {
       const services = await runtime.start({
         mission: pi.getFlag("mycelial-mission"),
@@ -36,7 +38,9 @@ export default function mycelialExtension(pi: ExtensionAPI): void {
         session: pi.getFlag("mycelial-session"),
         hostSession: ctx.sessionManager.getSessionId(),
       });
-      if (!services || registered) return;
+      if (!services) return;
+      reportMycelialFooterSlot(pi.events, services.identity);
+      if (registered) return;
       pi.registerTool(createSendTool(services));
       pi.registerTool(createReadTool(services));
       pi.registerTool(createAckTool(services));
@@ -46,6 +50,7 @@ export default function mycelialExtension(pi: ExtensionAPI): void {
       pi.registerTool(createRosterTool(services));
       registered = true;
     } catch (error) {
+      reportMycelialFooterSlot(pi.events);
       await logger.error("runtime binding failed", error);
       if (ctx.hasUI)
         ctx.ui.notify(
@@ -55,6 +60,7 @@ export default function mycelialExtension(pi: ExtensionAPI): void {
     }
   });
   pi.on("session_shutdown", async () => {
+    reportMycelialFooterSlot(pi.events);
     await runtime.stop();
   });
 }

@@ -2,11 +2,12 @@
 
 ## Status
 
-Implemented for the package-owned v1 protocol. The design addresses
-read-modify-write races, shared role-level cursors, non-append-only receipts,
-trusted identity binding, delayed ULID publication, partial fan-out recovery,
-and lock-owner fencing. Optional Herdr, notification, persona, and immutable
-claim-event integrations remain deferred outer work.
+Implemented for the package-owned v1 protocol and standalone-adoption surface.
+The design addresses read-modify-write races, shared role-level cursors,
+non-append-only receipts, trusted identity binding, delayed ULID publication,
+partial fan-out recovery, and lock-owner fencing. Package-owned neutral guidance
+and trusted footer status are included; Herdr wake-ups and persona policy remain
+optional external integrations, and immutable claim events remain deferred.
 
 ## Goal
 
@@ -26,13 +27,17 @@ without becoming a full orchestration platform.
 
 ## Layering
 
-1. **Herdr** — live transport, presence, fallback delivery.
-2. **pi-presets** — role/persona instructions; teaches roles to use the mailbox.
-3. **File-backed mission mailbox** — durable coordination state; source of truth.
+1. **Optional Herdr integration** — a best-effort live wake-up after durable send.
+2. **Operating guidance** — the package skill, repository guidance, or optional personas.
+3. **File-backed mission mailbox** — durable coordination state and source of truth.
+
+The mailbox has no preset dependency. Protocol-operating guidance stays outside
+the storage layer and may come from the neutral package skill, project guidance,
+or optional persona instructions.
 
 ## Identity and startup binding
 
-Mission, role, and session identity are supplied by the launcher/Herdr at
+Mission, role, and session identity are supplied by the operator or launcher at
 process start — never inferred by the model and never accepted as tool
 arguments from the model:
 
@@ -184,15 +189,10 @@ delivery behavior as in v2.
   finding the live (non-expired) entry, not by trusting whichever process
   wrote last to a single shared file.
 
-Notification content stays terse and body-free:
-
-```text
-Mailbox notification: P1 blocker from reviewer, id 01J8Z3K9QATG5V2N7X4R6M1B0C.
-Use agent_mail_read for details. Policy: handle after current safe point.
-```
-
-Notification delivery reuses an existing turn-completion/crash-detection
-watcher for Pi-in-Herdr rather than a custom one (see References).
+Mycelial does not add a receiver-side polling notifier or inbox watcher. Durable
+mail alone does not wake an idle agent. When Herdr is available, a sender may
+issue a terse, body-free poke to the role-named agent only after durable send
+succeeds. The mailbox remains authoritative if that optional poke fails.
 
 ## Task ownership: claims
 
@@ -269,11 +269,12 @@ mutable file for v1.
 None of these accept `from`, `from_session`, `mission`, or `role` as
 parameters — those come from trusted runtime identity.
 
-## Role policy belongs in personas
+## Operating policy stays outside storage
 
-Unchanged — routing rules, who can message whom directly, and how
-aggressively a role interrupts its own work live in pi-presets instructions,
-not in the mailbox.
+Acknowledgement expectations, claim checkpoints, escalation, and role-specific
+routing policy do not belong in mailbox execution. Neutral protocol procedure is
+provided by the package skill; repositories may add project guidance, and users
+may optionally add persona-specific policy without coupling Mycelial to presets.
 
 ## Implementation shape
 
@@ -281,6 +282,7 @@ not in the mailbox.
 src/
   index.ts
   runtime.ts            # resolves trusted identity (mission/role/session)
+  footer-slot.ts         # best-effort operator-only trusted binding
   mailbox-store.ts       # immutable records: messages, receipts, claim-events
   projections.ts         # mutable, rebuildable/scoped: claims, roster, cursors
   identity.ts
@@ -294,8 +296,8 @@ src/
     roster.ts
 ```
 
-Any polling/file watcher starts in `session_start` and stops idempotently in
-`session_shutdown`, per Pi's extension lifecycle.
+Mycelial starts heartbeat ownership in `session_start` and stops it idempotently
+in `session_shutdown`. It does not start an inbox poller or file watcher.
 
 ## Initial implementation recommendation
 
@@ -306,10 +308,10 @@ Any polling/file watcher starts in `session_start` and stops idempotently in
 3. Send/read/ack/reply tools; read is non-destructive and cursor-scoped.
 4. Claims with mkdir-based locking and version-checked takeover.
 5. Receipts as one-file-per-event; skip a latest-state cache until needed.
-6. Persona instructions requiring mail checks at task boundaries.
-7. Reuse an existing turn-completion watcher for notification injection
-   rather than building one (see References).
-8. Later: Herdr integration for starting and prompting named agents.
+6. Package-owned neutral skill guidance requiring mail checks at task boundaries.
+7. Optional sender-side Herdr poke only after durable send; no receiver-side
+   notifier or process-control implementation in this package.
+8. Optional external persona guidance may add role-specific policy.
 
 ## References
 

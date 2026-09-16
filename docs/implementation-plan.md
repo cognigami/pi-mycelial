@@ -4,7 +4,10 @@
 
 Implemented for the package-owned v1 layers (work packages 0–10). Work package
 11 remains intentionally deferred because it belongs in separate Herdr and
-pi-presets changes. The work is ordered from
+pi-presets changes. The approved standalone-adoption follow-up is complete: the
+package now includes managed neutral guidance, a sample mission and short setup
+guide, operator-only trusted footer binding, and actionable read formatting.
+It adds no receiver-side polling notifier or process-control integration. The work is ordered from
 the logically innermost correctness loops—validated records and filesystem
 publication—outward through mailbox workflows, Pi tools, lifecycle integration,
 and finally Herdr/persona integration.
