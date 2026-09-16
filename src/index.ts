@@ -1,8 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createExtensionFiles } from "pi-extension-kit/files";
+import { runMycelialCommand } from "./command";
 import { reportMycelialFooterSlot } from "./footer-slot";
 import { MycelialRuntime } from "./runtime";
 import { createAckTool } from "./tool/ack";
+import { createMissionReadTool } from "./tool/mission-read";
 import { createReadTool } from "./tool/read";
 import { createReplyTool } from "./tool/reply";
 import { createRosterTool } from "./tool/roster";
@@ -28,6 +30,10 @@ export default function mycelialExtension(pi: ExtensionAPI): void {
     description: "Optional authoritative launcher session identifier",
     type: "string",
   });
+  pi.registerCommand("mycelial", {
+    description: "Initialize a Mycelial mission and generated Herdr launcher",
+    handler: (args, ctx) => runMycelialCommand(args, ctx, files, logger),
+  });
 
   pi.on("session_start", async (_event, ctx) => {
     reportMycelialFooterSlot(pi.events);
@@ -41,6 +47,7 @@ export default function mycelialExtension(pi: ExtensionAPI): void {
       if (!services) return;
       reportMycelialFooterSlot(pi.events, services.identity);
       if (registered) return;
+      pi.registerTool(createMissionReadTool(services));
       pi.registerTool(createSendTool(services));
       pi.registerTool(createReadTool(services));
       pi.registerTool(createAckTool(services));

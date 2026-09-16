@@ -9,7 +9,7 @@ Use the durable mailbox as coordination truth. Never invent or pass mission, rol
 
 ## Start and check in
 
-1. Read the mission's `mission.md` and the active repository's `AGENTS.md` when the launch prompt identifies them.
+1. Call `agent_mission_read` to load the mission selected by the trusted binding, then read the active repository's `AGENTS.md`.
 2. Call `agent_roster` with `refresh: true` to publish this session's presence and see live sessions.
 3. Call `agent_mail_read` before starting new work.
 4. Check mail again at atomic task boundaries and before ending a work turn. Do not poll continuously.
@@ -39,4 +39,4 @@ For one independently claimable request, use the request message ID as both the 
 
 ## Optional live wake-up
 
-When Herdr is available, a sender may issue a terse, body-free poke to the role-named Herdr agent only after durable `agent_mail_send` succeeds. The poke should say only that Mycelial mail is waiting and direct the recipient to read it. The durable mailbox remains authoritative if the poke fails. Do not depend on Herdr for storage, acknowledgement, or ownership.
+When Herdr is available, a sender should issue a terse, body-free poke to the role-named Herdr agent only after durable `agent_mail_send` or `agent_mail_reply` succeeds. The poke should say only that Mycelial mail is waiting and direct the recipient to read it. The durable mailbox remains authoritative if the poke fails. Do not depend on Herdr for storage, acknowledgement, or ownership.

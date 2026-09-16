@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ackSchema, createAckTool } from "./ack";
+import { createMissionReadTool, missionReadSchema } from "./mission-read";
 import { createReadTool, readSchema } from "./read";
 import { createReplyTool, replySchema } from "./reply";
 import { createRosterTool, rosterSchema } from "./roster";
@@ -9,6 +10,7 @@ import { createTaskClaimTool, taskClaimSchema } from "./task-claim";
 import { createTaskReleaseTool, taskReleaseSchema } from "./task-release";
 
 const schemas = [
+  missionReadSchema,
   sendSchema,
   readSchema,
   ackSchema,
@@ -22,6 +24,7 @@ describe("model-facing contracts", () => {
     const services = {} as ToolServices;
     expect(
       [
+        createMissionReadTool(services),
         createSendTool(services),
         createReadTool(services),
         createAckTool(services),
@@ -31,6 +34,7 @@ describe("model-facing contracts", () => {
         createRosterTool(services),
       ].map((tool) => tool.name)
     ).toEqual([
+      "agent_mission_read",
       "agent_mail_send",
       "agent_mail_read",
       "agent_mail_ack",

@@ -6,6 +6,7 @@ export type RoleId = Brand<string, "RoleId">;
 export type SessionId = Brand<string, "SessionId">;
 export type TaskId = Brand<string, "TaskId">;
 export type RepoAlias = Brand<string, "RepoAlias">;
+export type PresetName = Brand<string, "PresetName">;
 export type MessageId = Brand<string, "MessageId">;
 export type EventId = Brand<string, "EventId">;
 
@@ -44,6 +45,8 @@ export const sessionId = (v: unknown) => segment<"SessionId">(v, "session id");
 export const taskId = (v: unknown) => segment<"TaskId">(v, "task id");
 export const repoAlias = (v: unknown) =>
   segment<"RepoAlias">(v, "repository alias");
+export const presetName = (v: unknown) =>
+  segment<"PresetName">(v, "preset name");
 export function messageId(v: unknown): MessageId {
   if (typeof v !== "string" || !ULID.test(v))
     throw new ValidationError("message id must be a canonical ULID");

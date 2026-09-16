@@ -11,9 +11,11 @@ now includes a user-run dogfood launcher that composes Herdr and Pi externally.
 
 The successful dogfood run completed durable send, read, acknowledgement,
 claim, reply, done, release, and coordinator verification across two agents.
-That evidence promotes mission initialization and one-command Herdr launch from
-a deferred convenience to required WP12 work. Automatic post-send runtime
-adapters and persona-specific policy remain separate optional integrations.
+WP12 mission initialization, explicit mission reading, role preset metadata, and
+generated multi-tab Herdr launch are now implemented and covered by synthetic
+tests; live validation on an operator project remains. Automatic post-send
+runtime adapters and persona-specific policy remain separate optional
+integrations.
 
 ## Delivery decision
 
@@ -444,6 +446,7 @@ metadata, execution, rendering, and tests.
 
 - Set `additionalProperties: false` on every object schema.
 - Exclude mission, role, sender, and session fields entirely.
+- `agent_mission_read`: no arguments; resolves bounded mission content from the trusted binding.
 - `agent_mail_send`: `to`, body, and optional message metadata.
 - `agent_mail_read`: bounded filters/replay controls only.
 - `agent_mail_ack`: message ID, receipt event, optional note/delegation detail.
@@ -487,7 +490,7 @@ reviewable and tested without host filesystem access.
 - Validate `just build` and install against a temporary `PI_CODING_AGENT_DIR`.
 
 **Exit criterion:** the managed artifact loads, remains invisible when unbound,
-and exposes the seven tools when bound to a valid mission.
+and exposes the eight tools when bound to a valid mission.
 
 ## Work package 10 — End-to-end and fault-injection gate
 
@@ -569,6 +572,8 @@ fully functional durable mailbox extension for manually prompted agents.
 
 ## Work package 12 — Mission initialization and generated Herdr launch
 
+**Status:** implemented; live operator-project acceptance pending.
+
 Users should not have to create every control file and launch every role by
 hand. Promote the dogfood launcher pattern into a supported, user-invoked
 mission workflow. See [`mission-ux-design.md`](mission-ux-design.md).
@@ -586,7 +591,9 @@ Register an unbound `/mycelial init` command as an operator approval boundary at
 the end of a discovery-style conversation. It creates a validated mission under
 `~/mycelial/missions/<mission-id>/`, reports every generated path, refuses
 implicit overwrite, and may copy a user-approved Markdown draft. Generate at
-least `mission.md`, `agents.json`, `repos.json`, and `launch-herdr.sh`.
+least `mission.md`, `agents.json`, `repos.json`, and `launch-herdr.sh`, plus a
+non-overwriting `launch-mycelial-<mission-id>.sh` project symlink to the
+canonical launcher.
 
 ### 12C — Generated Herdr launcher
 
@@ -621,7 +628,7 @@ Keep the implementation reviewable as a stack of independently valid changes:
 4. Read cursors, receipts, and replies.
 5. Task mutexes and claim transitions.
 6. Identity, roster, heartbeat, and inert-unbound lifecycle.
-7. Seven Pi tool definitions and composition.
+7. Eight Pi tool definitions and composition.
 8. End-to-end fault/concurrency hardening and documentation.
 9. Standalone guidance, sample mission, footer status, and actionable read
    formatting.

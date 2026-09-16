@@ -20,6 +20,7 @@ export interface FileSystem {
   ): Promise<void>;
   rename(from: string, to: string): Promise<void>;
   link(from: string, to: string): Promise<void>;
+  symlink(target: string, path: string): Promise<void>;
   unlink(path: string): Promise<void>;
   rm(
     path: string,
@@ -29,6 +30,7 @@ export interface FileSystem {
   lstat(path: string): Promise<FileStat>;
   realpath(path: string): Promise<string>;
   access(path: string): Promise<void>;
+  chmod(path: string, mode: number): Promise<void>;
   open(path: string, flags: string, mode?: number): Promise<FileHandle>;
   syncDirectory(path: string): Promise<void>;
 }
@@ -41,12 +43,14 @@ export const nodeFileSystem: FileSystem = {
   },
   rename: fs.rename,
   link: fs.link,
+  symlink: fs.symlink,
   unlink: fs.unlink,
   rm: fs.rm,
   rmdir: fs.rmdir,
   lstat: fs.lstat,
   realpath: fs.realpath,
   access: async (path) => fs.access(path, constants.F_OK),
+  chmod: fs.chmod,
   open: async (path, flags, mode) => fs.open(path, flags, mode),
   syncDirectory: async (path) => {
     const handle = await fs.open(path, "r");

@@ -2,6 +2,8 @@ import { isAbsolute, relative, sep } from "node:path";
 import type { FileSystem } from "./filesystem";
 import { isMissing } from "./filesystem";
 import {
+  type PresetName,
+  presetName,
   type RepoAlias,
   type RoleId,
   repoAlias,
@@ -11,8 +13,14 @@ import {
 import { parseJson } from "./json-codec";
 import { MissionPaths } from "./paths";
 
+export interface AgentConfig {
+  role: RoleId;
+  preset?: PresetName;
+}
+
 export interface MissionSnapshot {
   paths: MissionPaths;
+  agents: AgentConfig[];
   roles: RoleId[];
   repos: RepoAlias[];
 }
@@ -25,16 +33,12 @@ export async function loadMission(
   await requireRegular(fs, paths.missionFile());
   await requireRegular(fs, paths.agentsFile());
   await assertInsideRealRoot(fs, paths);
-  const roles = parseJson(
+  const agents = parseJson(
     (await fs.readFile(paths.agentsFile())).toString("utf8"),
     paths.agentsFile(),
-    (agents) => {
-      const parsed = parseNames(agents, "agents").map(roleId).sort();
-      if (parsed.length === 0 || new Set(parsed).size !== parsed.length)
-        throw new ValidationError("agents.json must define unique roles");
-      return parsed;
-    }
+    parseAgents
   );
+  const roles = agents.map((agent) => agent.role);
   let repos: RepoAlias[] = [];
   try {
     await requireRegular(fs, paths.reposFile());
@@ -46,7 +50,7 @@ export async function loadMission(
   } catch (error) {
     if (!isMissing(error)) throw error;
   }
-  return { paths, roles, repos };
+  return { paths, agents, roles, repos };
 }
 
 export function resolveRecipients(
@@ -75,6 +79,72 @@ export function validateRepo(
   if (!snapshot.repos.includes(repo))
     throw new ValidationError(`Unknown repository alias: ${value}`);
   return repo;
+}
+
+export async function readMissionDocument(
+  fs: FileSystem,
+  snapshot: MissionSnapshot,
+  maxBytes: number
+): Promise<{ text: string; truncated: boolean; totalBytes: number }> {
+  const path = snapshot.paths.missionFile();
+  await requireRegular(fs, path);
+  await assertInsideRealRoot(fs, snapshot.paths);
+  const content = await fs.readFile(path);
+  const truncated = content.byteLength > maxBytes;
+  const text = (truncated ? content.subarray(0, maxBytes) : content).toString(
+    "utf8"
+  );
+  return { text, truncated, totalBytes: content.byteLength };
+}
+
+function parseAgents(value: unknown): AgentConfig[] {
+  const parsed = parseAgentEntries(value)
+    .map((agent) => ({
+      role: roleId(agent.role),
+      ...(agent.preset === undefined
+        ? {}
+        : { preset: presetName(agent.preset) }),
+    }))
+    .sort((left, right) => left.role.localeCompare(right.role));
+  const roles = parsed.map((agent) => agent.role);
+  if (parsed.length === 0 || new Set(roles).size !== roles.length)
+    throw new ValidationError("agents.json must define unique roles");
+  return parsed;
+}
+
+function parseAgentEntries(
+  value: unknown
+): Array<{ role: string; preset?: string }> {
+  if (Array.isArray(value))
+    return value.map((entry) => {
+      if (typeof entry === "string") return { role: entry };
+      if (!entry || typeof entry !== "object")
+        throw new ValidationError("Invalid agents entry");
+      const record = entry as Record<string, unknown>;
+      const role = record.role ?? record.name;
+      if (typeof role !== "string")
+        throw new ValidationError("Invalid agents entry");
+      return { role, ...parsePreset(record) };
+    });
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (Object.hasOwn(record, "agents"))
+      return parseAgentEntries(record.agents);
+    return Object.entries(record).map(([role, metadata]) => {
+      if (metadata === null) return { role };
+      if (!metadata || typeof metadata !== "object")
+        throw new ValidationError(`Invalid agents metadata for ${role}`);
+      return { role, ...parsePreset(metadata as Record<string, unknown>) };
+    });
+  }
+  throw new ValidationError("agents.json must be an array or object");
+}
+
+function parsePreset(record: Record<string, unknown>): { preset?: string } {
+  if (record.preset === undefined) return {};
+  if (typeof record.preset !== "string")
+    throw new ValidationError("Agent preset must be a string");
+  return { preset: record.preset };
 }
 
 function parseNames(value: unknown, label: string): string[] {

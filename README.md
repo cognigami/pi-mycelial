@@ -2,7 +2,7 @@
 
 A durable, local mission mailbox and task-claim Pi extension. Mycelial stores immutable messages and receipts, rebuildable inbox markers, per-session read state and presence, and lock-protected task leases.
 
-**New users:** follow [Getting Started](docs/getting-started.md) for a standalone setup with manually launched Pi agents. A minimal mission is available in [`examples/mission/`](examples/mission/).
+**New users:** follow [Getting Started](docs/getting-started.md) to initialize a mission, launch all configured roles through Herdr, or use ordinary manually launched Pi agents. A minimal mission is available in [`examples/mission/`](examples/mission/).
 
 ## Install
 
@@ -15,18 +15,29 @@ The managed artifact is `dist/index.js`. Set `PI_CODING_AGENT_DIR` to install in
 
 ## Mission setup
 
-The default mission base is `~/mycelial/missions` (override `missionRoot` in `~/.config/pi-extensions/mycelial/*.jsonc`). A mission must already contain:
+The default mission base is `~/mycelial/missions` (override `missionRoot` in `~/.config/pi-extensions/mycelial/*.jsonc`). From a Pi session in the target repository, initialize a mission with:
+
+```text
+/mycelial init release-42 --roles coordinator,implementer,reviewer [--from docs/release-42.md]
+```
+
+The command refuses overwrite and creates:
 
 ```text
 <missionRoot>/<mission-id>/
   mission.md
   agents.json
-  repos.json       # optional
+  repos.json
+  launch-herdr.sh
 ```
 
-`mission.md` is a required control file but is not injected into model context; direct agents to read it in their initial prompt. It supplements and never overrides repository `AGENTS.md`. Keep canonical designs and plans in their repositories and reference them from the mission.
+It also creates `./launch-mycelial-<mission-id>.sh` in the repository as a non-overwriting symlink to the canonical launcher.
 
-`agents.json` may be an array of role names, an object keyed by role, or `{ "agents": [...] }`. `repos.json` accepts the corresponding alias forms. Repository aliases are metadata and do not resolve to filesystem paths in v1. Generated protocol directories are created lazily. Symlinked protocol control paths are rejected.
+`mission.md` is a required control file but is not injected into every model turn. Bound agents read it explicitly with `agent_mission_read`. It supplements and never overrides repository `AGENTS.md`. Keep canonical designs and plans in their repositories and reference them from the mission.
+
+`agents.json` may be an array of role names, an object keyed by role, or `{ "agents": [...] }`. An object entry may define optional launcher metadata, for example `"reviewer": { "preset": "domain-auditor" }`. `repos.json` accepts the corresponding alias forms. Repository aliases are metadata and do not resolve to filesystem paths in v1. Generated protocol directories are created lazily. Symlinked protocol control paths are rejected.
+
+From a Herdr-managed control shell in the repository, run `./launch-mycelial-<mission-id>.sh` with no arguments to launch every configured role in its own tab, or pass role names to launch a subset. A configured preset is forwarded as `--presets:preset`; Mycelial does not select models or providers.
 
 Bind identity explicitly:
 
@@ -50,10 +61,10 @@ No project-local identity configuration is read. Immutable publication uses same
 
 ## Tools and coordination
 
-`agent_mail_send`, `agent_mail_read`, `agent_mail_ack`, `agent_mail_reply`, `agent_task_claim`, `agent_task_release`, and `agent_roster` are available only after successful binding. Reads are non-destructive and session-scoped. `all` excludes the sender and records a static recipient snapshot. Task contention is a structured successful result rather than a tool exception.
+`agent_mission_read`, `agent_mail_send`, `agent_mail_read`, `agent_mail_ack`, `agent_mail_reply`, `agent_task_claim`, `agent_task_release`, and `agent_roster` are available only after successful binding. Reads are non-destructive and session-scoped. `all` excludes the sender and records a static recipient snapshot. Task contention is a structured successful result rather than a tool exception.
 
 Use one request message per independently claimable task and use its message ID as the default task ID and source message ID. Claims—not roster presence or accepted receipts—establish ownership.
 
-Mycelial does not poll, watch inboxes, or wake idle agents. When Herdr is available, send durable mail first and then optionally issue a terse body-free poke to the role-named agent. The mailbox remains authoritative if the poke fails. Herdr process control and persona policy remain outside this package. Immutable `claim-events/` history is explicitly deferred in v1; claim files retain current state and monotonic transition versions.
+Mycelial does not poll or watch inboxes. Its generated, user-invoked launcher composes Herdr and Pi without moving process supervision into mailbox runtime code. When Herdr is available, send durable mail first and then issue a terse body-free poke to the role-named agent. The mailbox remains authoritative if the poke fails. Automatic runtime notification adapters and persona policy remain outside the mailbox layer. Immutable `claim-events/` history is explicitly deferred in v1; claim files retain current state and monotonic transition versions.
 
 See [the protocol design](docs/design.md) for record and concurrency details.

@@ -2,10 +2,10 @@
 
 ## Status
 
-Accepted direction for work package 12. The fixed two-agent launcher in
-`scripts/launch-dogfood-herdr.sh` validates the Herdr mechanics; the generic Pi
-command, mission reader, and generated per-mission launcher are not implemented
-yet.
+Implemented for work package 12, with live operator-project acceptance pending.
+The fixed two-agent launcher in `scripts/launch-dogfood-herdr.sh` validated the
+Herdr mechanics; `/mycelial init`, `agent_mission_read`, optional role preset
+metadata, and generated per-mission launchers now provide the generic workflow.
 
 ## Problem
 
@@ -63,6 +63,14 @@ At minimum it generates:
   repos.json
   launch-herdr.sh
 ```
+
+It also creates a non-overwriting project shortcut:
+
+```text
+<repository>/launch-mycelial-<mission-id>.sh -> ~/mycelial/missions/<mission-id>/launch-herdr.sh
+```
+
+The mission-specific name avoids collisions when one repository participates in multiple missions. The command reports both paths and leaves repository ignore policy to the operator.
 
 The command records the repository cwd in the generated launcher for the first
 version. Cross-repository launch placement is a later extension; `repos.json`
@@ -126,7 +134,8 @@ executed explicitly from a Herdr-managed control shell. It must:
 9. Give each agent a short prompt to read the mission, refresh the roster, and
    read mail.
 10. Report mission, role, tab, pane, and agent identifiers.
-11. Fail visibly on name collisions or partial startup and leave created tabs
+11. Be reachable through the generated mission-specific project symlink.
+12. Fail visibly on name collisions or partial startup and leave created tabs
     available for inspection.
 
 Generated values must be validated and shell-quoted. The launcher must not

@@ -5,11 +5,10 @@
 Implemented for the package-owned v1 protocol and standalone-adoption surface.
 The design addresses read-modify-write races, shared role-level cursors,
 non-append-only receipts, trusted identity binding, delayed ULID publication,
-partial fan-out recovery, and lock-owner fencing. Package-owned neutral guidance
-and trusted footer status are included. A successful Herdr dogfood run now
-motivates required mission-initialization and generated-launch UX; automatic
-runtime wake-up adapters, persona policy, and immutable claim events remain
-deferred.
+partial fan-out recovery, and lock-owner fencing. Package-owned neutral guidance,
+trusted footer status, explicit mission reading, mission initialization, and
+generated multi-tab Herdr launch are included. Automatic runtime wake-up
+adapters, persona policy, and immutable claim events remain deferred.
 
 ## Goal
 
@@ -75,12 +74,14 @@ All mission, role, task, and message identifiers are validated (charset,
 length) before being used to construct a filesystem path, since they become
 path segments.
 
-## Planned mission initialization and launch UX
+## Mission initialization and launch UX
 
 Mission content is human-owned or human-approved, even when an LLM drafts it
-during discovery. An unbound Pi command will act as the approval boundary: it
-copies or generates mission control files, reports their paths for editing, and
-generates an inspectable `launch-herdr.sh` without executing it.
+during discovery. The unbound `/mycelial init` Pi command acts as the approval
+boundary: it copies or generates mission control files, reports their paths for
+editing, and generates an inspectable `launch-herdr.sh` without executing it.
+It also places a non-overwriting, mission-specific symlink to that launcher in
+the repository where initialization ran.
 
 The launcher opens one Herdr tab per configured role, starts every role by
 default, and permits an explicit subset. Herdr agent names initially match role
@@ -88,7 +89,7 @@ names. Each Pi process receives trusted mission and role flags. Optional preset
 metadata is forwarded with `--presets:preset`; all other runtime selection stays
 with Pi and pi-presets.
 
-A pathless `agent_mission_read` tool will let a bound agent explicitly load the
+The pathless `agent_mission_read` tool lets a bound agent explicitly load the
 trusted mission document without placing it in every model turn or accepting a
 model-supplied path. This keeps launch prompts short while preserving the rule
 that `mission.md` supplements but never overrides repository `AGENTS.md`.
