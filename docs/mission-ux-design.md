@@ -46,11 +46,13 @@ Register `/mycelial` even when the current Pi process has no mission binding.
 The initial workflow is:
 
 ```text
-/mycelial init <mission-id> --roles <role,...> [--from <draft.md>]
+/mycelial init <mission-id> --roles <role,...> [--from <source.md>] [--no-coordinator]
 ```
 
-With `--from`, the command copies a user-approved Markdown draft. Without it,
-the command generates a minimal editable template. It validates identifiers,
+With `--from`, the command treats a user-approved repository Markdown file as a
+canonical source artifact and generates a mission wrapper that references it.
+It does not duplicate the source into mission storage. Without `--from`, the
+command generates a minimal editable template. It validates identifiers,
 refuses implicit overwrite, creates the mission directory, and reports every
 output path. It does not launch processes itself.
 
@@ -70,7 +72,12 @@ It also creates a non-overwriting project shortcut:
 <repository>/launch-mycelial-<mission-id>.sh -> ~/mycelial/missions/<mission-id>/launch-herdr.sh
 ```
 
-The mission-specific name avoids collisions when one repository participates in multiple missions. The command reports both paths and leaves repository ignore policy to the operator.
+If `<repository>/AGENTS.md` is absent, initialization creates a non-overwriting
+minimal scaffold at that exact path. It never searches for substitutes and
+never modifies an existing `AGENTS.md`; repository-specific commands and policy
+remain operator-owned.
+
+The mission-specific launcher name avoids collisions when one repository participates in multiple missions. The command reports both paths and the guidance path, and leaves repository ignore policy to the operator.
 
 The command records the repository cwd in the generated launcher for the first
 version. Cross-repository launch placement is a later extension; `repos.json`
@@ -87,7 +94,14 @@ Mission content is loaded explicitly rather than injected into every turn. This
 keeps context use visible and prevents a model from selecting another mission
 path.
 
-### Role launch metadata
+### Coordinator and role launch metadata
+
+Initialization prepends `coordinator` unless it was explicitly listed or the
+operator passes `--no-coordinator`. The generated mission gives that role
+concrete decomposition, routing, blocker-tracking, and acceptance
+responsibilities. Other configured roles receive generic claim-and-report
+responsibilities that the coordinator specializes through durable requests.
+Role identity still does not infer a persona or model.
 
 Continue accepting the simple role array:
 
@@ -131,11 +145,13 @@ executed explicitly from a Herdr-managed control shell. It must:
 6. Use the role as the default Herdr agent name.
 7. Start Pi with trusted mission and role flags.
 8. Forward `--presets:preset` only when configured for that role.
-9. Give each agent a short prompt to read the mission, refresh the roster, and
-   read mail.
-10. Report mission, role, tab, pane, and agent identifiers.
-11. Be reachable through the generated mission-specific project symlink.
-12. Fail visibly on name collisions or partial startup and leave created tabs
+9. Prompt the coordinator first and wait for it to create durable initial
+   assignments without issuing initial wake-ups.
+10. Prompt workers to read and claim those assignments without waiting for their
+    implementation turns to complete.
+11. Report mission, role, tab, pane, and agent identifiers.
+12. Be reachable through the generated mission-specific project symlink.
+13. Fail visibly on name collisions or partial startup and leave created tabs
     available for inspection.
 
 Generated values must be validated and shell-quoted. The launcher must not
@@ -146,15 +162,16 @@ mission participants. Subset selection supports staged startup and recovery.
 
 ## Live wake-up boundary
 
-Mission launch automation is required and is distinct from an automatic
-post-send adapter. A sender or active launcher may issue a terse body-free Herdr
-poke only after durable send or reply succeeds. Poke failure never rolls back or
-invalidates mail.
+Mission launch automation is distinct from durable mailbox storage. The bound
+`agent_wake` tool provides a narrow best-effort adapter: after durable send or
+reply succeeds, it validates one direct recipient against the mission roster and
+invokes the role-named Herdr agent with a fixed notification containing no task
+content. It rejects self-targets and does not accept model-provided prompt text.
+Wake failure never rolls back or invalidates mail.
 
-The first generic launcher need not become a resident supervisor. If repeated
-missions show that agent-issued wake-ups are unreliable, a separate adapter may
-consume a post-send event. That decision remains outside WP12 and outside
-mailbox storage.
+The launcher handles the initial coordinator-to-worker notification itself, so
+the coordinator is told not to wake workers during its startup turn. Mycelial
+does not become a resident supervisor or add receiver-side polling.
 
 ## Dogfood evidence
 
@@ -177,9 +194,12 @@ WP12 is complete when a user can:
 1. Conduct a discovery conversation and approve one `/mycelial init` command.
 2. Review or edit the generated mission files and launcher.
 3. Run one launcher from a Herdr control shell.
-4. See all configured roles start in separate tabs with correct trusted
-   bindings and optional presets.
-5. Have each agent explicitly read its mission without a path-heavy startup
-   prompt.
-6. Remove Herdr and still use the durable mailbox with manually launched Pi
+4. See the default coordinator create initial assignments before workers are
+   prompted in separate tabs with correct trusted bindings and optional presets.
+5. Have each agent explicitly read its mission and referenced source artifact
+   without a path-heavy startup prompt.
+6. Initialize a repository without `AGENTS.md` and receive a non-overwriting
+   scaffold, while preserving an existing file unchanged.
+7. Wake another configured role through `agent_wake` only after durable mail.
+8. Remove Herdr and still use the durable mailbox with manually launched Pi
    sessions.

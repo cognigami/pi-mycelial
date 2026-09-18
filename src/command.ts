@@ -16,6 +16,7 @@ export interface InitCommand {
   roles: string[];
   repos?: string[];
   source?: string;
+  includeCoordinator: boolean;
 }
 
 export type MycelialCommand = { action: "help" } | InitCommand;
@@ -29,14 +30,23 @@ export function parseMycelialCommand(input: string): MycelialCommand {
   const mission = words[1];
   if (!mission || mission.startsWith("--"))
     throw new ValidationError(
-      "Usage: /mycelial init <mission-id> --roles <role,...> [--from <draft.md>] [--repos <alias,...>]"
+      "Usage: /mycelial init <mission-id> --roles <role,...> [--from <source.md>] [--repos <alias,...>] [--no-coordinator]"
     );
 
   let roles: string[] | undefined;
   let repos: string[] | undefined;
   let source: string | undefined;
+  let includeCoordinator = true;
   for (let index = 2; index < words.length; index++) {
     const option = words[index];
+    if (option === "--no-coordinator") {
+      if (!includeCoordinator)
+        throw new ValidationError(
+          "--no-coordinator may be specified only once"
+        );
+      includeCoordinator = false;
+      continue;
+    }
     const value = words[index + 1];
     if (!value || value.startsWith("--"))
       throw new ValidationError(`Missing value for ${option}`);
@@ -65,6 +75,7 @@ export function parseMycelialCommand(input: string): MycelialCommand {
     roles,
     ...(repos === undefined ? {} : { repos }),
     ...(source === undefined ? {} : { source }),
+    includeCoordinator,
   };
 }
 
@@ -79,7 +90,7 @@ export async function runMycelialCommand(
   if (command.action === "help") {
     notify(
       ctx,
-      "Usage: /mycelial init <mission-id> --roles <role,...> [--from <draft.md>] [--repos <alias,...>]",
+      "Usage: /mycelial init <mission-id> --roles <role,...> [--from <source.md>] [--repos <alias,...>] [--no-coordinator]",
       "info"
     );
     return;
@@ -94,6 +105,7 @@ export async function runMycelialCommand(
       repos:
         command.repos ?? (inferredRepo === undefined ? [] : [inferredRepo]),
       source: command.source,
+      includeCoordinator: command.includeCoordinator,
       cwd: ctx.cwd,
       config,
     });
@@ -121,6 +133,7 @@ export function formatInitializedMission(result: InitializedMission): string {
     `Repositories: ${result.reposFile}`,
     `Launcher: ${result.launcherFile}`,
     `Project shortcut: ${result.projectLauncherLink}`,
+    `Repository guidance: ${result.repositoryGuidanceFile}${result.repositoryGuidanceCreated ? " (created)" : " (existing, unchanged)"}`,
     `Run from Herdr: ${result.projectLauncherLink}`,
   ].join("\n");
 }

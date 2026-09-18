@@ -39,4 +39,4 @@ For one independently claimable request, use the request message ID as both the 
 
 ## Optional live wake-up
 
-When Herdr is available, a sender should issue a terse, body-free poke to the role-named Herdr agent only after durable `agent_mail_send` or `agent_mail_reply` succeeds. The poke should say only that Mycelial mail is waiting and direct the recipient to read it. The durable mailbox remains authoritative if the poke fails. Do not depend on Herdr for storage, acknowledgement, or ownership.
+When `agent_wake` is available, call it for the recipient role only after durable `agent_mail_send` or `agent_mail_reply` succeeds. The tool sends a fixed Herdr notification with no task content and validates the target against the mission roster. The durable mailbox remains authoritative if wake-up fails. Do not depend on Herdr for storage, acknowledgement, or ownership.

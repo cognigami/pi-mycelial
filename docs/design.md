@@ -6,9 +6,10 @@ Implemented for the package-owned v1 protocol and standalone-adoption surface.
 The design addresses read-modify-write races, shared role-level cursors,
 non-append-only receipts, trusted identity binding, delayed ULID publication,
 partial fan-out recovery, and lock-owner fencing. Package-owned neutral guidance,
-trusted footer status, explicit mission reading, mission initialization, and
-generated multi-tab Herdr launch are included. Automatic runtime wake-up
-adapters, persona policy, and immutable claim events remain deferred.
+trusted footer status, explicit mission reading, mission initialization,
+generated multi-tab Herdr launch, and an explicit best-effort `agent_wake` tool
+are included. Automatic post-send wake-up, receiver polling, persona policy, and
+immutable claim events remain deferred.
 
 ## Goal
 
@@ -78,10 +79,12 @@ path segments.
 
 Mission content is human-owned or human-approved, even when an LLM drafts it
 during discovery. The unbound `/mycelial init` Pi command acts as the approval
-boundary: it copies or generates mission control files, reports their paths for
+boundary: it generates mission control files, references an optional approved
+repository source artifact instead of copying it, reports output paths for
 editing, and generates an inspectable `launch-herdr.sh` without executing it.
 It also places a non-overwriting, mission-specific symlink to that launcher in
-the repository where initialization ran.
+the repository where initialization ran and creates a minimal repository
+`AGENTS.md` only when that exact file is absent.
 
 The launcher opens one Herdr tab per configured role, starts every role by
 default, and permits an explicit subset. Herdr agent names initially match role
@@ -225,9 +228,10 @@ delivery behavior as in v2.
   wrote last to a single shared file.
 
 Mycelial does not add a receiver-side polling notifier or inbox watcher. Durable
-mail alone does not wake an idle agent. When Herdr is available, a sender may
-issue a terse, body-free poke to the role-named agent only after durable send
-succeeds. The mailbox remains authoritative if that optional poke fails.
+mail alone does not wake an idle agent. After durable send or reply succeeds, a
+sender may call `agent_wake`; it accepts one configured recipient role and sends
+a fixed, task-content-free prompt to the role-named Herdr agent. The mailbox
+remains authoritative if that optional wake-up fails.
 
 ## Task ownership: claims
 

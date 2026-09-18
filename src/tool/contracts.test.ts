@@ -8,6 +8,7 @@ import { createSendTool, sendSchema } from "./send";
 import type { ToolServices } from "./services";
 import { createTaskClaimTool, taskClaimSchema } from "./task-claim";
 import { createTaskReleaseTool, taskReleaseSchema } from "./task-release";
+import { createWakeTool, wakeSchema } from "./wake";
 
 const schemas = [
   missionReadSchema,
@@ -18,6 +19,7 @@ const schemas = [
   taskClaimSchema,
   taskReleaseSchema,
   rosterSchema,
+  wakeSchema,
 ];
 describe("model-facing contracts", () => {
   test("have stable names and composition order", () => {
@@ -32,6 +34,7 @@ describe("model-facing contracts", () => {
         createTaskClaimTool(services),
         createTaskReleaseTool(services),
         createRosterTool(services),
+        createWakeTool(services, async () => ({ code: 0, killed: false })),
       ].map((tool) => tool.name)
     ).toEqual([
       "agent_mission_read",
@@ -42,6 +45,7 @@ describe("model-facing contracts", () => {
       "agent_task_claim",
       "agent_task_release",
       "agent_roster",
+      "agent_wake",
     ]);
   });
   test("are closed and contain no trusted identity fields", () => {

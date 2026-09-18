@@ -86,8 +86,8 @@ Include:
    `mission.md` and repository `AGENTS.md`, refresh the roster, and read mail.
 7. The message-ID-as-task-ID convention.
 8. The limitation that an idle agent does not wake from durable mail alone.
-9. Optional Herdr usage: durable send first, then a terse body-free poke to the
-   role-named Herdr agent.
+9. Optional Herdr usage: durable send or reply first, then `agent_wake` for the
+   configured recipient role.
 
 Do not turn Getting Started into a complete protocol reference; link to the
 design for details.
@@ -165,8 +165,8 @@ The skill must be neutral rather than persona-specific. Cover:
 - roster presence is not task ownership;
 - never invent or pass trusted identity fields;
 - optional Herdr behavior: after durable mail succeeds, and only when Herdr is
-  available, send a body-free poke to the role-named agent. The durable mailbox
-  remains authoritative if the poke fails.
+  available, call `agent_wake` for the recipient role. Its fixed notification
+  carries no task content, and durable mail remains authoritative if it fails.
 
 Do not add polling instructions, preset assumptions, routing restrictions, or
 role-specific implementation/review policy.

@@ -12,9 +12,10 @@ now includes a user-run dogfood launcher that composes Herdr and Pi externally.
 The successful dogfood run completed durable send, read, acknowledgement,
 claim, reply, done, release, and coordinator verification across two agents.
 WP12 mission initialization, explicit mission reading, role preset metadata, and
-generated multi-tab Herdr launch are now implemented and covered by synthetic
-tests; live validation on an operator project remains. Automatic post-send
-runtime adapters and persona-specific policy remain separate optional
+generated multi-tab Herdr launch, coordinator-first kickoff, repository
+`AGENTS.md` scaffolding, and explicit best-effort `agent_wake` are implemented
+and covered by synthetic tests; live validation on an operator project remains.
+Automatic post-send wake-up and persona-specific policy remain separate optional
 integrations.
 
 ## Delivery decision
@@ -546,10 +547,12 @@ for launch and live wake-up.
 
 ### 11B — Optional automatic runtime wake-up adapter
 
-Do not conflate runtime notification automation with mission launch automation;
-required launch work is WP12. A future post-send adapter remains optional and
-must be justified by repeated evidence that agent-issued or launcher-issued
-pokes are unreliable. If implemented, keep it outside mailbox storage and
+The explicit `agent_wake` tool now provides a bounded sender-initiated path: it
+validates one configured role and sends fixed prompt text only after the caller
+has completed durable mail. Do not conflate that operator/model-invoked tool or
+mission launch automation with automatic runtime notification. A future
+automatic post-send adapter remains optional and must be justified by repeated
+evidence that agent-issued or launcher-issued wake-ups are unreliable. If implemented, keep it outside mailbox storage and
 resolve:
 
 - role-to-Herdr-agent mapping when names differ;

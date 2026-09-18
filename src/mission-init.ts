@@ -1,4 +1,4 @@
-import { basename, resolve, sep } from "node:path";
+import { basename, isAbsolute, relative, resolve, sep } from "node:path";
 import { publishImmutable } from "./atomic-files";
 import type { MycelialConfig } from "./config";
 import type { FileSystem } from "./filesystem";
@@ -10,6 +10,7 @@ export interface InitializeMissionInput {
   roles: unknown[];
   repos?: unknown[];
   source?: string;
+  includeCoordinator?: boolean;
   cwd: string;
   config: MycelialConfig;
 }
@@ -22,6 +23,8 @@ export interface InitializedMission {
   reposFile: string;
   launcherFile: string;
   projectLauncherLink: string;
+  repositoryGuidanceFile: string;
+  repositoryGuidanceCreated: boolean;
 }
 
 export async function initializeMission(
@@ -29,9 +32,17 @@ export async function initializeMission(
   input: InitializeMissionInput
 ): Promise<InitializedMission> {
   const id = missionId(input.mission);
-  const roles = input.roles.map(roleId);
-  if (roles.length === 0 || new Set(roles).size !== roles.length)
+  const requestedRoles = input.roles.map(roleId);
+  if (
+    requestedRoles.length === 0 ||
+    new Set(requestedRoles).size !== requestedRoles.length
+  )
     throw new ValidationError("Mission roles must be non-empty and unique");
+  const coordinator = roleId("coordinator");
+  const roles =
+    input.includeCoordinator === false || requestedRoles.includes(coordinator)
+      ? requestedRoles
+      : [coordinator, ...requestedRoles];
   const repos = (input.repos ?? []).map(repoAlias);
   if (new Set(repos).size !== repos.length)
     throw new ValidationError("Mission repository aliases must be unique");
@@ -46,6 +57,7 @@ export async function initializeMission(
   const reposFile = resolve(directory, "repos.json");
   const launcherFile = resolve(directory, "launch-herdr.sh");
   const projectLauncherLink = resolve(cwd, `launch-mycelial-${id}.sh`);
+  const repositoryGuidanceFile = resolve(cwd, "AGENTS.md");
   await requireAbsent(fs, projectLauncherLink, "Project launcher link");
   const missionBody = await missionDocument(fs, input, id, roles);
   const launcher = renderHerdrLauncher({
@@ -57,6 +69,7 @@ export async function initializeMission(
   await fs.mkdir(missionRoot, { recursive: true, mode: 0o700 });
   let created = false;
   let linked = false;
+  let repositoryGuidanceCreated = false;
   try {
     await fs.mkdir(directory, { mode: 0o700 });
     created = true;
@@ -67,6 +80,21 @@ export async function initializeMission(
   }
 
   try {
+    try {
+      const guidanceStat = await fs.lstat(repositoryGuidanceFile);
+      if (!guidanceStat.isFile() || guidanceStat.isSymbolicLink())
+        throw new ValidationError(
+          `Repository AGENTS.md is not a regular file: ${repositoryGuidanceFile}`
+        );
+    } catch (error) {
+      if (!isMissing(error)) throw error;
+      const result = await publishImmutable(
+        fs,
+        repositoryGuidanceFile,
+        Buffer.from(repositoryGuidanceTemplate())
+      );
+      repositoryGuidanceCreated = result === "created";
+    }
     await publishImmutable(fs, missionFile, Buffer.from(missionBody));
     await publishImmutable(
       fs,
@@ -88,6 +116,10 @@ export async function initializeMission(
       try {
         await fs.unlink(projectLauncherLink);
       } catch {}
+    if (repositoryGuidanceCreated)
+      try {
+        await fs.unlink(repositoryGuidanceFile);
+      } catch {}
     if (created) await fs.rm(directory, { recursive: true, force: true });
     throw error;
   }
@@ -100,6 +132,8 @@ export async function initializeMission(
     reposFile,
     launcherFile,
     projectLauncherLink,
+    repositoryGuidanceFile,
+    repositoryGuidanceCreated,
   };
 }
 
@@ -127,40 +161,107 @@ async function missionDocument(
   const source = resolve(input.cwd, input.source);
   const stat = await fs.lstat(source);
   if (!stat.isFile() || stat.isSymbolicLink())
-    throw new ValidationError(`Mission draft is not a regular file: ${source}`);
+    throw new ValidationError(
+      `Source artifact is not a regular file: ${source}`
+    );
   const content = await fs.readFile(source);
   if (content.byteLength > input.config.readMaxBytes)
     throw new ValidationError(
-      `Mission draft exceeds ${input.config.readMaxBytes} bytes`
+      `Source artifact exceeds ${input.config.readMaxBytes} bytes`
     );
-  const text = content.toString("utf8");
-  return text.endsWith("\n") ? text : `${text}\n`;
+  return missionTemplate(id, roles, sourceReference(input.cwd, source));
 }
 
-function missionTemplate(id: string, roles: readonly string[]): string {
+function missionTemplate(
+  id: string,
+  roles: readonly string[],
+  source?: string
+): string {
+  const goal = source
+    ? `Deliver the bounded outcome described by the approved source artifact \`${markdownCode(source)}\`.`
+    : "Describe the bounded mission outcome.";
+  const artifacts = [
+    "- Repository `AGENTS.md`",
+    ...(source === undefined
+      ? []
+      : [`- Approved source artifact: \`${markdownCode(source)}\``]),
+  ];
+  const hasCoordinator = roles.includes("coordinator");
+  const coordination = hasCoordinator
+    ? [
+        "- The coordinator decomposes the mission and its canonical artifacts into independently claimable requests, sends those requests through Mycelial, tracks blockers, and accepts final results.",
+        "- Other roles acknowledge and claim a request before working, then report results and validation through the original thread before releasing the claim.",
+        "- Use `agent_wake` only after durable mail or a durable reply succeeds. During initial launch, the launcher wakes configured workers after the coordinator creates assignments.",
+      ]
+    : [
+        "- This mission has no designated coordinator; roles must create explicit durable requests before starting independently claimable work.",
+        "- A role acknowledges and claims a request before working, then reports results and validation through the original thread before releasing the claim.",
+        "- Use `agent_wake` only after durable mail or a durable reply succeeds.",
+      ];
+  const exitCriterion = source
+    ? `Every deliverable and acceptance check in the approved source artifact is complete, validated, and accepted${hasCoordinator ? " by the coordinator" : " through durable mission mail"}.`
+    : "Describe the observable condition that completes this mission.";
   return `# ${id} Mission
 
 ## Goal
 
-Describe the bounded mission outcome.
+${goal}
 
 ## Canonical artifacts
 
-- Repository \`AGENTS.md\`
+${artifacts.join("\n")}
 
 ## Roles
 
-${roles.map((role) => `- **${role}:** Describe this role's responsibility.`).join("\n")}
+${roles.map(roleResponsibility).join("\n")}
 
 ## Coordination
 
 - Load the \`mycelial-coordination\` skill.
-- Read the mission, refresh the roster, and check mail before starting work.
-- Use durable Mycelial mail before any optional live wake-up.
+- Read this mission and every canonical artifact before acting.
+- Refresh the roster and check durable mail before starting work.
+${coordination.join("\n")}
 
 ## Exit criterion
 
-Describe the observable condition that completes this mission.
+${exitCriterion}
+`;
+}
+
+function roleResponsibility(role: string): string {
+  return role === "coordinator"
+    ? "- **coordinator:** Decompose and route work, track blockers, review reported validation, and accept the final mission result."
+    : `- **${role}:** Accept scoped requests for this role, claim work before starting, and report results with validation.`;
+}
+
+function sourceReference(cwd: string, source: string): string {
+  const candidate = relative(resolve(cwd), source);
+  return candidate.length > 0 &&
+    !isAbsolute(candidate) &&
+    candidate !== ".." &&
+    !candidate.startsWith(`..${sep}`)
+    ? candidate
+    : source;
+}
+
+function markdownCode(value: string): string {
+  return value.replaceAll("`", "\\`").replace(/[\r\n]+/gu, " ");
+}
+
+function repositoryGuidanceTemplate(): string {
+  return `# Project Guidance
+
+## Repository workflow
+
+- Keep durable designs, plans, and engineering decisions in repository Markdown files.
+- Document the repository's supported build, test, lint, and formatting commands here before relying on them.
+- Do not invent project commands; ask the operator when the supported workflow is unclear.
+
+## Mycelial missions
+
+- Load the \`mycelial-coordination\` skill when working in a bound Mycelial mission.
+- Call \`agent_mission_read\`, refresh \`agent_roster\`, and read \`agent_mail_read\` before starting mission work.
+- Treat durable mail as coordination truth and use claims for exclusive work ownership.
 `;
 }
 
@@ -311,10 +412,26 @@ for role in "\${SELECTED_ROLES[@]}"; do
   herdr agent start "$role" --kind "$AGENT_KIND" --pane "$CREATED_PANE" -- "\${agent_args[@]}"
 done
 
+coordinator_started=false
 for role in "\${STARTED_ROLES[@]}"; do
+  if [[ "$role" == "coordinator" ]]; then
+    coordinator_started=true
+    herdr agent prompt "$role" \
+      "You are the coordinator for mission $MISSION_ID. Load the mycelial-coordination skill, call agent_mission_read, follow the repository AGENTS.md already loaded by Pi, read every canonical artifact named by the mission, refresh agent_roster, and read agent_mail_read. Decompose the mission into independently claimable requests and send initial assignments to the live worker roles. Do not implement worker tasks and do not call agent_wake during this startup turn; the launcher will notify workers after your durable sends succeed." \
+      --wait --timeout 120000
+    break
+  fi
+done
+
+for role in "\${STARTED_ROLES[@]}"; do
+  [[ "$role" == "coordinator" ]] && continue
+  if [[ "$coordinator_started" == "true" ]]; then
+    startup_action="Read agent_mail_read, acknowledge and claim an assignment addressed to you, then begin the scoped work. If no assignment is present, report ready and wait."
+  else
+    startup_action="Begin any responsibility explicitly assigned to your role by the mission; otherwise report ready and wait."
+  fi
   herdr agent prompt "$role" \
-    "You are the $role role for mission $MISSION_ID. Load the mycelial-coordination skill, call agent_mission_read, read the repository AGENTS.md, refresh agent_roster, then read agent_mail_read. Begin any responsibility explicitly assigned to your role by the mission; otherwise report ready and wait." \
-    --wait --timeout 120000
+    "You are the $role role for mission $MISSION_ID. Load the mycelial-coordination skill, call agent_mission_read, follow the repository AGENTS.md already loaded by Pi, read every canonical artifact named by the mission, refresh agent_roster, then $startup_action"
 done
 
 trap - ERR

@@ -23,13 +23,15 @@ Install Mycelial from its package repository:
 just install
 ```
 
-Start Pi in the repository where agents should work. After a discovery conversation produces an optional Markdown draft, approve mission creation with:
+Start Pi in the repository where agents should work. After a discovery conversation identifies an optional approved design or implementation plan, initialize the mission with:
 
 ```text
-/mycelial init release-42 --roles coordinator,implementer,reviewer --from docs/release-42.md
+/mycelial init release-42 --roles implementer,reviewer --from docs/release-42-plan.md
 ```
 
-Omit `--from` to generate a minimal editable `mission.md`. The command creates `mission.md`, `agents.json`, `repos.json`, and an executable `launch-herdr.sh` under `~/mycelial/missions/release-42/`. It also creates `./launch-mycelial-release-42.sh` in the current repository as a symlink to the canonical launcher, then reports every path. It refuses to overwrite an existing mission or project shortcut.
+With `--from`, the source file remains the canonical repository artifact and the generated `mission.md` references it as mission input; it is not copied into mission storage. Omit `--from` to generate a minimal editable mission. The command adds a `coordinator` role by default, creates `mission.md`, `agents.json`, `repos.json`, and an executable `launch-herdr.sh` under `~/mycelial/missions/release-42/`, and creates `./launch-mycelial-release-42.sh` as a symlink to the canonical launcher. Pass `--no-coordinator` only for deliberately peer-coordinated work.
+
+Initialization also creates a minimal repository `AGENTS.md` when that exact file is absent. It never modifies an existing `AGENTS.md`. The command refuses to overwrite an existing mission or project shortcut and reports every created or reused path.
 
 Repository aliases default to the current repository directory name. Supply `--repos app,shared-library` to override them. In v1 an alias is message metadata only; Mycelial does not resolve it to a filesystem path. See [`examples/mission/`](../examples/mission/) for a complete minimal mission.
 
@@ -53,7 +55,7 @@ From a Herdr-managed control shell in the repository, run:
 ./launch-mycelial-release-42.sh
 ```
 
-The launcher leaves the control tab intact, opens one tab per role, starts role-named Pi agents with trusted bindings, forwards optional presets, and prompts each agent to read the mission, refresh the roster, and check mail. Pass role names to launch only a subset:
+The launcher leaves the control tab intact, opens one tab per role, starts role-named Pi agents with trusted bindings, and forwards optional presets. When the default coordinator is present, it receives the first startup prompt and creates durable initial assignments; the launcher then notifies workers to read and claim their mail without waiting for their implementation turns to finish. Pass role names to launch only a subset:
 
 ```sh
 ./launch-mycelial-release-42.sh coordinator reviewer
@@ -79,6 +81,6 @@ The footer shows the trusted binding as `implementer@release-42` when a compatib
 
 Send one independently claimable task per request message. Unless the mission explicitly defines another safe identifier, use that request's message ID as both the task ID and the claim's source message ID. Claims—not roster presence or an `accepted` receipt—establish exclusive ownership.
 
-Durable mail does not wake an idle agent by itself. When Herdr is available, first complete `agent_mail_send`; only after it succeeds, send a terse body-free poke to the role-named Herdr agent, such as “Mycelial mail waiting; read your inbox.” If that poke fails, the durable mailbox remains authoritative.
+Durable mail does not wake an idle agent by itself. When Herdr is available, first complete `agent_mail_send` or `agent_mail_reply`; only after it succeeds, call `agent_wake` for the recipient role. The tool validates that the target is another configured mission role and sends a fixed notification without task content. If the best-effort wake-up fails, the durable mailbox remains authoritative.
 
 For record formats and concurrency semantics, see [`docs/design.md`](design.md).

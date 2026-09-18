@@ -29,14 +29,23 @@ test("initializes mission controls and an executable multi-tab launcher", async 
 
     const result = await initializeMission(nodeFileSystem, {
       mission: "release-42",
-      roles: ["coordinator", "reviewer"],
+      roles: ["reviewer"],
       repos: ["app"],
       source: "docs/mission draft.md",
       cwd,
       config: { ...DEFAULT_CONFIG, missionRoot },
     });
 
-    expect(await readFile(result.missionFile, "utf8")).toBe("# Approved\n");
+    const mission = await readFile(result.missionFile, "utf8");
+    expect(mission).toContain(
+      "approved source artifact `docs/mission draft.md`"
+    );
+    expect(mission).not.toContain("# Approved");
+    expect(mission).toContain("**coordinator:** Decompose and route work");
+    expect(mission).toContain("**reviewer:** Accept scoped requests");
+    expect(mission).toContain(
+      "Every deliverable and acceptance check in the approved source artifact"
+    );
     expect(JSON.parse(await readFile(result.agentsFile, "utf8"))).toEqual({
       agents: ["coordinator", "reviewer"],
     });
@@ -53,12 +62,19 @@ test("initializes mission controls and an executable multi-tab launcher", async 
     expect(result.projectLauncherLink).toBe(
       join(cwd, "launch-mycelial-release-42.sh")
     );
+    expect(result.repositoryGuidanceCreated).toBeTrue();
+    expect(result.repositoryGuidanceFile).toBe(join(cwd, "AGENTS.md"));
+    expect(await readFile(result.repositoryGuidanceFile, "utf8")).toContain(
+      "# Project Guidance"
+    );
 
     const launcher = await readFile(result.launcherFile, "utf8");
     expect(launcher).toContain("herdr tab create");
     expect(launcher).not.toContain("herdr pane split");
     expect(launcher).toContain("--presets:preset");
     expect(launcher).toContain("agent_mission_read");
+    expect(launcher).toContain("Decompose the mission");
+    expect(launcher).toContain("AGENTS.md already loaded by Pi");
     expect(launcher).toContain("repo'\"'\"'s work");
     await execFileAsync("bash", ["-n", result.launcherFile]);
 
@@ -137,6 +153,8 @@ printf '{"result":{}}\\n'
       "agent start reviewer --kind pi --pane p3 -- --mycelial-mission live-test --mycelial-role reviewer --presets:preset domain-auditor"
     );
     expect(calls.match(/agent prompt/g)).toHaveLength(3);
+    expect(calls).toContain("agent prompt coordinator");
+    expect(calls.match(/--wait --timeout 120000/g)).toHaveLength(1);
 
     await writeFile(herdrLog, "");
     await writeFile(herdrCount, "0");
@@ -154,6 +172,37 @@ printf '{"result":{}}\\n'
     expect(subsetCalls.match(/tab create/g)).toHaveLength(1);
     expect(subsetCalls).toContain("agent start reviewer");
     expect(subsetCalls).not.toContain("agent start coordinator");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("preserves an existing AGENTS.md and permits coordinator opt-out", async () => {
+  const root = await mkdtemp(join(tmpdir(), "mycelial-guidance-"));
+  const missionRoot = join(root, "missions");
+  const cwd = join(root, "repo");
+  try {
+    await mkdir(cwd, { recursive: true });
+    await writeFile(join(cwd, "AGENTS.md"), "# Existing guidance\n");
+
+    const result = await initializeMission(nodeFileSystem, {
+      mission: "peer-only",
+      roles: ["builder"],
+      includeCoordinator: false,
+      cwd,
+      config: { ...DEFAULT_CONFIG, missionRoot },
+    });
+
+    expect(JSON.parse(await readFile(result.agentsFile, "utf8"))).toEqual({
+      agents: ["builder"],
+    });
+    expect(result.repositoryGuidanceCreated).toBeFalse();
+    expect(await readFile(result.missionFile, "utf8")).toContain(
+      "This mission has no designated coordinator"
+    );
+    expect(await readFile(join(cwd, "AGENTS.md"), "utf8")).toBe(
+      "# Existing guidance\n"
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
