@@ -13,10 +13,12 @@ The successful dogfood run completed durable send, read, acknowledgement,
 claim, reply, done, release, and coordinator verification across two agents.
 WP12 mission initialization, explicit mission reading, role preset metadata, and
 generated multi-tab Herdr launch, coordinator-first kickoff, repository
-`AGENTS.md` scaffolding, and explicit best-effort `agent_wake` are implemented
-and covered by synthetic tests; live validation on an operator project remains.
-Automatic post-send wake-up and persona-specific policy remain separate optional
-integrations.
+`AGENTS.md` scaffolding, automatic post-send/reply notification, and explicit
+best-effort `agent_wake` retry are implemented and covered by synthetic tests;
+live validation of the automatic notification path on an operator project
+remains. See
+[`coordination-liveness-design.md`](coordination-liveness-design.md).
+Persona-specific policy remains separate and optional.
 
 ## Delivery decision
 
@@ -545,24 +547,34 @@ run passed after moving the exercise behind a Node-backed `just` recipe.
 implemented result through a complete Mycelial lifecycle, with Herdr used only
 for launch and live wake-up.
 
-### 11B — Optional automatic runtime wake-up adapter
+### 11B — Automatic runtime notification adapter — implemented
 
-The explicit `agent_wake` tool now provides a bounded sender-initiated path: it
-validates one configured role and sends fixed prompt text only after the caller
-has completed durable mail. Do not conflate that operator/model-invoked tool or
-mission launch automation with automatic runtime notification. A future
-automatic post-send adapter remains optional and must be justified by repeated
-evidence that agent-issued or launcher-issued wake-ups are unreliable. If implemented, keep it outside mailbox storage and
-resolve:
+The live `study-guide` mission supplied the missing evidence: a worker durably
+reported completion but omitted the separate coordinator wake, leaving the
+operator to restore liveness. `agent_mail_send` and `agent_mail_reply` now
+publish durable mail first and then automatically invoke an injected outer
+notification dispatcher for every delivered recipient. The fixed prompt carries
+no task content. Failure and cancellation are reported separately and never
+invalidate durable mail.
 
-- role-to-Herdr-agent mapping when names differ;
-- multiple live sessions for one role;
-- busy, blocked, missing, and remote agents;
-- which priorities or interrupt modes should trigger a poke;
-- failure reporting and duplicate suppression.
+The explicit `agent_wake` tool remains the bounded retry path. It validates one
+configured role and uses the same dispatcher and fixed prompt. V1 continues to
+map Mycelial role names directly to Herdr agent names, attempts one notification
+per delivered recipient, and relies on Herdr to handle the target's current live
+state. Concurrent wake attempts for the same role share one in-flight Herdr
+invocation; later attempts are not suppressed after it settles. There is no
+receiver watcher, periodic poller, resident duplicate-suppression service, or
+mission scheduler.
 
-The adapter must preserve the ordering invariant: durable send first, optional
-poke second.
+The generated launcher no longer duplicates worker prompts when a coordinator
+is present: the coordinator's initial durable assignments perform notification.
+Synthetic tests cover durable-before-wake ordering, send and reply, fan-out,
+self-target skipping, in-flight duplicate coalescing, failure preservation,
+cancellation, launcher behavior, and the explicit retry path. Live
+operator-project validation remains.
+
+The detailed evidence, load analysis, and boundary against a resident supervisor
+are in [`coordination-liveness-design.md`](coordination-liveness-design.md).
 
 ### 11C — Optional persona guidance
 
@@ -638,8 +650,9 @@ Keep the implementation reviewable as a stack of independently valid changes:
 10. Herdr dogfood and complete durable lifecycle validation.
 11. Mission initialization, explicit mission reading, and generated multi-tab
     Herdr launch.
-12. Only then decide whether an automatic runtime wake-up adapter or
-    persona-specific guidance is justified.
+12. Validate the automatic post-send notification adapter live, then use
+    measured residual stalls to decide whether bounded reconciliation is
+    justified. Keep persona-specific guidance separate.
 
 Do not begin an outer change while an inner layer still has unresolved
 concurrency or recovery semantics.

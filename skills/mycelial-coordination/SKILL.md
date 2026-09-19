@@ -37,6 +37,8 @@ For one independently claimable request, use the request message ID as both the 
 - Roster presence and `accepted` receipts do not establish ownership; only a live claim does.
 - Before `agent_task_release`, report the result and validation through the existing mail thread, then release the claim.
 
-## Optional live wake-up
+## Automatic live notification
 
-When `agent_wake` is available, call it for the recipient role only after durable `agent_mail_send` or `agent_mail_reply` succeeds. The tool sends a fixed Herdr notification with no task content and validates the target against the mission roster. The durable mailbox remains authoritative if wake-up fails. Do not depend on Herdr for storage, acknowledgement, or ownership.
+`agent_mail_send` and `agent_mail_reply` durably publish mail first, then automatically make a best-effort wake-up attempt for each delivered recipient. Inspect their notification results. Do not make a routine second `agent_wake` call after a successful automatic notification.
+
+Use `agent_wake` only to retry a notification failure reported by send or reply. It sends the same fixed Herdr notification with no task content and validates the target against the mission roster. Durable mail remains authoritative if every wake-up attempt fails. Do not depend on Herdr for storage, acknowledgement, or ownership.

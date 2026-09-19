@@ -85,9 +85,9 @@ Include:
 6. A small initial prompt that identifies the role, tells the agent to read
    `mission.md` and repository `AGENTS.md`, refresh the roster, and read mail.
 7. The message-ID-as-task-ID convention.
-8. The limitation that an idle agent does not wake from durable mail alone.
-9. Optional Herdr usage: durable send or reply first, then `agent_wake` for the
-   configured recipient role.
+8. The limitation that durable mailbox storage alone does not wake an idle agent.
+9. Optional Herdr usage: durable send or reply first, followed automatically by
+   best-effort notification; `agent_wake` is the explicit retry path.
 
 Do not turn Getting Started into a complete protocol reference; link to the
 design for details.
@@ -164,9 +164,10 @@ The skill must be neutral rather than persona-specific. Cover:
 - the message-ID-as-task-ID convention;
 - roster presence is not task ownership;
 - never invent or pass trusted identity fields;
-- optional Herdr behavior: after durable mail succeeds, and only when Herdr is
-  available, call `agent_wake` for the recipient role. Its fixed notification
-  carries no task content, and durable mail remains authoritative if it fails.
+- optional Herdr behavior: after durable mail succeeds, automatically attempt a
+  fixed notification with no task content for each delivered recipient; use
+  `agent_wake` only to retry a reported failure. Durable mail remains
+  authoritative if notification fails.
 
 Do not add polling instructions, preset assumptions, routing restrictions, or
 role-specific implementation/review policy.

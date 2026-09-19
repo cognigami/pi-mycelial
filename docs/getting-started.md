@@ -81,6 +81,6 @@ The footer shows the trusted binding as `implementer@release-42` when a compatib
 
 Send one independently claimable task per request message. Unless the mission explicitly defines another safe identifier, use that request's message ID as both the task ID and the claim's source message ID. Claims—not roster presence or an `accepted` receipt—establish exclusive ownership.
 
-Durable mail does not wake an idle agent by itself. When Herdr is available, first complete `agent_mail_send` or `agent_mail_reply`; only after it succeeds, call `agent_wake` for the recipient role. The tool validates that the target is another configured mission role and sends a fixed notification without task content. If the best-effort wake-up fails, the durable mailbox remains authoritative.
+Durable mailbox storage does not itself wake an idle agent. After `agent_mail_send` or `agent_mail_reply` publishes durable mail, the tool automatically attempts a fixed, content-free Herdr wake-up for each delivered recipient and reports the notification outcome separately. If that attempt fails, durable mail remains authoritative; use `agent_wake` only to retry the reported failure.
 
 For record formats and concurrency semantics, see [`docs/design.md`](design.md).

@@ -146,9 +146,9 @@ executed explicitly from a Herdr-managed control shell. It must:
 7. Start Pi with trusted mission and role flags.
 8. Forward `--presets:preset` only when configured for that role.
 9. Prompt the coordinator first and wait for it to create durable initial
-   assignments without issuing initial wake-ups.
-10. Prompt workers to read and claim those assignments without waiting for their
-    implementation turns to complete.
+   assignments whose send operations automatically notify delivered workers.
+10. Avoid duplicate launcher prompts for workers when a coordinator is present;
+    without a coordinator, give each selected worker its startup prompt.
 11. Report mission, role, tab, pane, and agent identifiers.
 12. Be reachable through the generated mission-specific project symlink.
 13. Fail visibly on name collisions or partial startup and leave created tabs
@@ -162,16 +162,20 @@ mission participants. Subset selection supports staged startup and recovery.
 
 ## Live wake-up boundary
 
-Mission launch automation is distinct from durable mailbox storage. The bound
-`agent_wake` tool provides a narrow best-effort adapter: after durable send or
-reply succeeds, it validates one direct recipient against the mission roster and
-invokes the role-named Herdr agent with a fixed notification containing no task
-content. It rejects self-targets and does not accept model-provided prompt text.
-Wake failure never rolls back or invalidates mail.
+Mission launch automation is distinct from durable mailbox storage. After a
+bound `agent_mail_send` or `agent_mail_reply` publishes durable mail, its outer
+tool workflow automatically invokes each delivered role-named Herdr agent with a
+fixed notification containing no task content. Notification failure never rolls
+back or invalidates mail. The bound `agent_wake` tool remains a narrow explicit
+retry path; it rejects self-targets and does not accept model-provided prompt
+text.
 
-The launcher handles the initial coordinator-to-worker notification itself, so
-the coordinator is told not to wake workers during its startup turn. Mycelial
-does not become a resident supervisor or add receiver-side polling.
+The launcher prompts the coordinator first. Its durable initial assignments now
+notify workers automatically, so the launcher does not issue duplicate worker
+prompts when a coordinator is present. Without a coordinator, it still gives
+each selected role its startup prompt. Mycelial does not become a resident
+supervisor or add receiver-side polling. See
+[`coordination-liveness-design.md`](coordination-liveness-design.md).
 
 ## Dogfood evidence
 
@@ -200,6 +204,7 @@ WP12 is complete when a user can:
    without a path-heavy startup prompt.
 6. Initialize a repository without `AGENTS.md` and receive a non-overwriting
    scaffold, while preserving an existing file unchanged.
-7. Wake another configured role through `agent_wake` only after durable mail.
+7. Automatically notify delivered recipients after durable send/reply, and use
+   `agent_wake` only to retry a reported notification failure.
 8. Remove Herdr and still use the durable mailbox with manually launched Pi
    sessions.

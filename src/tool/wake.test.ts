@@ -1,6 +1,12 @@
 import { expect, test } from "bun:test";
+import { roleId } from "../identifiers";
 import type { ToolServices } from "./services";
-import { createWakeTool, WAKE_PROMPT, type WakeCommandRunner } from "./wake";
+import {
+  createWakeDispatcher,
+  createWakeTool,
+  WAKE_PROMPT,
+  type WakeCommandRunner,
+} from "./wake";
 
 function services(): ToolServices {
   return {
@@ -17,7 +23,7 @@ test("sends a fixed Herdr wake-up to a configured mission role", async () => {
     calls.push({ command, args, timeout: options.timeout });
     return { code: 0, killed: false };
   };
-  const tool = createWakeTool(services(), run);
+  const tool = createWakeTool(services(), createWakeDispatcher(run));
 
   const result = await tool.execute(
     "tool-call",
@@ -37,13 +43,36 @@ test("sends a fixed Herdr wake-up to a configured mission role", async () => {
   expect(result.details).toEqual({ status: "sent", recipient: "builder" });
 });
 
+test("coalesces concurrent wakes for one role without suppressing later wakes", async () => {
+  let calls = 0;
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const dispatcher = createWakeDispatcher(async () => {
+    calls++;
+    await gate;
+    return { code: 0, killed: false };
+  });
+  const recipient = roleId("builder");
+
+  const first = dispatcher.wake(recipient);
+  const second = dispatcher.wake(recipient);
+  expect(calls).toBe(1);
+  release?.();
+  await Promise.all([first, second]);
+
+  await dispatcher.wake(recipient);
+  expect(calls).toBe(2);
+});
+
 test("rejects unknown and self recipients before invoking Herdr", async () => {
   let calls = 0;
   const run: WakeCommandRunner = async () => {
     calls++;
     return { code: 0, killed: false };
   };
-  const tool = createWakeTool(services(), run);
+  const tool = createWakeTool(services(), createWakeDispatcher(run));
 
   await expect(
     tool.execute(
@@ -67,9 +96,12 @@ test("rejects unknown and self recipients before invoking Herdr", async () => {
 });
 
 test("keeps durable mail authoritative when Herdr is unavailable", async () => {
-  const tool = createWakeTool(services(), async () => {
-    throw new Error("herdr is not installed");
-  });
+  const tool = createWakeTool(
+    services(),
+    createWakeDispatcher(async () => {
+      throw new Error("herdr is not installed");
+    })
+  );
 
   const result = await tool.execute(
     "tool-call",

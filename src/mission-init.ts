@@ -191,12 +191,12 @@ function missionTemplate(
     ? [
         "- The coordinator decomposes the mission and its canonical artifacts into independently claimable requests, sends those requests through Mycelial, tracks blockers, and accepts final results.",
         "- Other roles acknowledge and claim a request before working, then report results and validation through the original thread before releasing the claim.",
-        "- Use `agent_wake` only after durable mail or a durable reply succeeds. During initial launch, the launcher wakes configured workers after the coordinator creates assignments.",
+        "- Durable send and reply automatically attempt to wake delivered recipients. Use `agent_wake` only to retry a notification failure reported by those tools.",
       ]
     : [
         "- This mission has no designated coordinator; roles must create explicit durable requests before starting independently claimable work.",
         "- A role acknowledges and claims a request before working, then reports results and validation through the original thread before releasing the claim.",
-        "- Use `agent_wake` only after durable mail or a durable reply succeeds.",
+        "- Durable send and reply automatically attempt to wake delivered recipients. Use `agent_wake` only to retry a notification failure reported by those tools.",
       ];
   const exitCriterion = source
     ? `Every deliverable and acceptance check in the approved source artifact is complete, validated, and accepted${hasCoordinator ? " by the coordinator" : " through durable mission mail"}.`
@@ -417,7 +417,7 @@ for role in "\${STARTED_ROLES[@]}"; do
   if [[ "$role" == "coordinator" ]]; then
     coordinator_started=true
     herdr agent prompt "$role" \
-      "You are the coordinator for mission $MISSION_ID. Load the mycelial-coordination skill, call agent_mission_read, follow the repository AGENTS.md already loaded by Pi, read every canonical artifact named by the mission, refresh agent_roster, and read agent_mail_read. Decompose the mission into independently claimable requests and send initial assignments to the live worker roles. Do not implement worker tasks and do not call agent_wake during this startup turn; the launcher will notify workers after your durable sends succeed." \
+      "You are the coordinator for mission $MISSION_ID. Load the mycelial-coordination skill, call agent_mission_read, follow the repository AGENTS.md already loaded by Pi, read every canonical artifact named by the mission, refresh agent_roster, and read agent_mail_read. Decompose the mission into independently claimable requests and send initial assignments to the live worker roles. Durable send automatically notifies delivered recipients; inspect its notification results and use agent_wake only to retry a reported failure. Do not implement worker tasks." \
       --wait --timeout 120000
     break
   fi
@@ -425,13 +425,9 @@ done
 
 for role in "\${STARTED_ROLES[@]}"; do
   [[ "$role" == "coordinator" ]] && continue
-  if [[ "$coordinator_started" == "true" ]]; then
-    startup_action="Read agent_mail_read, acknowledge and claim an assignment addressed to you, then begin the scoped work. If no assignment is present, report ready and wait."
-  else
-    startup_action="Begin any responsibility explicitly assigned to your role by the mission; otherwise report ready and wait."
-  fi
+  [[ "$coordinator_started" == "true" ]] && continue
   herdr agent prompt "$role" \
-    "You are the $role role for mission $MISSION_ID. Load the mycelial-coordination skill, call agent_mission_read, follow the repository AGENTS.md already loaded by Pi, read every canonical artifact named by the mission, refresh agent_roster, then $startup_action"
+    "You are the $role role for mission $MISSION_ID. Load the mycelial-coordination skill, call agent_mission_read, follow the repository AGENTS.md already loaded by Pi, read every canonical artifact named by the mission, refresh agent_roster, then begin any responsibility explicitly assigned to your role by the mission; otherwise report ready and wait."
 done
 
 trap - ERR

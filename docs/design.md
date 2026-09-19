@@ -8,8 +8,9 @@ non-append-only receipts, trusted identity binding, delayed ULID publication,
 partial fan-out recovery, and lock-owner fencing. Package-owned neutral guidance,
 trusted footer status, explicit mission reading, mission initialization,
 generated multi-tab Herdr launch, and an explicit best-effort `agent_wake` tool
-are included. Automatic post-send wake-up, receiver polling, persona policy, and
-immutable claim events remain deferred.
+are included. Automatic post-send notification is implemented as an outer tool
+workflow; see [`coordination-liveness-design.md`](coordination-liveness-design.md).
+Receiver polling, persona policy, and immutable claim events remain deferred.
 
 ## Goal
 
@@ -228,10 +229,13 @@ delivery behavior as in v2.
   wrote last to a single shared file.
 
 Mycelial does not add a receiver-side polling notifier or inbox watcher. Durable
-mail alone does not wake an idle agent. After durable send or reply succeeds, a
-sender may call `agent_wake`; it accepts one configured recipient role and sends
-a fixed, task-content-free prompt to the role-named Herdr agent. The mailbox
-remains authoritative if that optional wake-up fails.
+mail storage alone does not wake an idle agent. After durable send or reply
+succeeds, the outer tool workflow automatically sends a fixed,
+task-content-free prompt to each delivered role-named Herdr agent. Notification
+results are reported separately; failure or cancellation never rolls back or
+invalidates mail. `agent_wake` remains an explicit retry path. The live
+`study-guide` evidence and the boundary against mission supervision are recorded
+in [`coordination-liveness-design.md`](coordination-liveness-design.md).
 
 ## Task ownership: claims
 
@@ -348,8 +352,8 @@ in `session_shutdown`. It does not start an inbox poller or file watcher.
 4. Claims with mkdir-based locking and version-checked takeover.
 5. Receipts as one-file-per-event; skip a latest-state cache until needed.
 6. Package-owned neutral skill guidance requiring mail checks at task boundaries.
-7. Optional sender-side Herdr poke only after durable send; no receiver-side
-   notifier or process-control implementation in this package.
+7. Automatic sender-side Herdr notification only after durable send, with an
+   explicit retry tool; no receiver-side notifier or process-control loop.
 8. Optional external persona guidance may add role-specific policy.
 
 ## References

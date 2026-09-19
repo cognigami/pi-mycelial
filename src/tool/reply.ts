@@ -2,7 +2,13 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 import { INTERRUPTS, PRIORITIES } from "../protocol";
+import {
+  notificationText,
+  notifyDelivered,
+  publicNotificationOutcomes,
+} from "./notify";
 import { type ToolServices, textResult } from "./services";
+import type { WakeDispatcher } from "./wake";
 export const replySchema = Type.Object(
   {
     message: Type.String(),
@@ -14,23 +20,34 @@ export const replySchema = Type.Object(
 );
 export type ReplyToolInput = Static<typeof replySchema>;
 export function createReplyTool(
-  services: ToolServices
+  services: ToolServices,
+  dispatcher: WakeDispatcher
 ): ToolDefinition<typeof replySchema> {
   return {
     name: "agent_mail_reply",
     label: "Reply to Agent Mail",
     description:
-      "Reply to a message's trusted sender, preserving thread and reply linkage.",
-    promptSnippet: "Reply to the trusted sender of mission mail",
+      "Reply to a message's trusted sender, preserve thread linkage, then best-effort wake delivered recipients.",
+    promptSnippet:
+      "Reply durably to the trusted sender and automatically notify them",
     promptGuidelines: [
-      "Use agent_mail_reply instead of agent_mail_send when responding to an existing message.",
+      "Use agent_mail_reply instead of agent_mail_send when responding to an existing message. Automatic wake-up follows durable delivery, so call agent_wake only to retry a reported notification failure.",
     ],
     parameters: replySchema,
-    async execute(_id, input) {
+    async execute(_id, input, signal) {
       const result = await services.mailbox.reply(services.identity, input);
+      const notifications = await notifyDelivered(
+        dispatcher,
+        services.identity.role,
+        result.delivered,
+        signal
+      );
       return textResult(
-        `Replied with ${result.message.id} to ${result.message.recipients.join(", ")}.`,
-        result
+        `Replied with ${result.message.id} to ${result.message.recipients.join(", ")}.${notificationText(notifications)}`,
+        {
+          ...result,
+          notifications: publicNotificationOutcomes(notifications),
+        }
       );
     },
   };

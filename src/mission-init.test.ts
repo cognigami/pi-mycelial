@@ -74,6 +74,7 @@ test("initializes mission controls and an executable multi-tab launcher", async 
     expect(launcher).toContain("--presets:preset");
     expect(launcher).toContain("agent_mission_read");
     expect(launcher).toContain("Decompose the mission");
+    expect(launcher).toContain("Durable send automatically notifies");
     expect(launcher).toContain("AGENTS.md already loaded by Pi");
     expect(launcher).toContain("repo'\"'\"'s work");
     await execFileAsync("bash", ["-n", result.launcherFile]);
@@ -152,8 +153,10 @@ printf '{"result":{}}\\n'
     expect(calls).toContain(
       "agent start reviewer --kind pi --pane p3 -- --mycelial-mission live-test --mycelial-role reviewer --presets:preset domain-auditor"
     );
-    expect(calls.match(/agent prompt/g)).toHaveLength(3);
+    expect(calls.match(/agent prompt/g)).toHaveLength(1);
     expect(calls).toContain("agent prompt coordinator");
+    expect(calls).not.toContain("agent prompt implementer");
+    expect(calls).not.toContain("agent prompt reviewer");
     expect(calls.match(/--wait --timeout 120000/g)).toHaveLength(1);
 
     await writeFile(herdrLog, "");

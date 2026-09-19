@@ -8,7 +8,7 @@ import { createSendTool, sendSchema } from "./send";
 import type { ToolServices } from "./services";
 import { createTaskClaimTool, taskClaimSchema } from "./task-claim";
 import { createTaskReleaseTool, taskReleaseSchema } from "./task-release";
-import { createWakeTool, wakeSchema } from "./wake";
+import { createWakeDispatcher, createWakeTool, wakeSchema } from "./wake";
 
 const schemas = [
   missionReadSchema,
@@ -24,17 +24,21 @@ const schemas = [
 describe("model-facing contracts", () => {
   test("have stable names and composition order", () => {
     const services = {} as ToolServices;
+    const dispatcher = createWakeDispatcher(async () => ({
+      code: 0,
+      killed: false,
+    }));
     expect(
       [
         createMissionReadTool(services),
-        createSendTool(services),
+        createSendTool(services, dispatcher),
         createReadTool(services),
         createAckTool(services),
-        createReplyTool(services),
+        createReplyTool(services, dispatcher),
         createTaskClaimTool(services),
         createTaskReleaseTool(services),
         createRosterTool(services),
-        createWakeTool(services, async () => ({ code: 0, killed: false })),
+        createWakeTool(services, dispatcher),
       ].map((tool) => tool.name)
     ).toEqual([
       "agent_mission_read",

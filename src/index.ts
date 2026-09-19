@@ -11,7 +11,7 @@ import { createRosterTool } from "./tool/roster";
 import { createSendTool } from "./tool/send";
 import { createTaskClaimTool } from "./tool/task-claim";
 import { createTaskReleaseTool } from "./tool/task-release";
-import { createWakeTool } from "./tool/wake";
+import { createWakeDispatcher, createWakeTool } from "./tool/wake";
 
 export default function mycelialExtension(pi: ExtensionAPI): void {
   const files = createExtensionFiles({ extensionName: "mycelial" });
@@ -48,23 +48,24 @@ export default function mycelialExtension(pi: ExtensionAPI): void {
       if (!services) return;
       reportMycelialFooterSlot(pi.events, services.identity);
       if (registered) return;
-      pi.registerTool(createMissionReadTool(services));
-      pi.registerTool(createSendTool(services));
-      pi.registerTool(createReadTool(services));
-      pi.registerTool(createAckTool(services));
-      pi.registerTool(createReplyTool(services));
-      pi.registerTool(createTaskClaimTool(services));
-      pi.registerTool(createTaskReleaseTool(services));
-      pi.registerTool(createRosterTool(services));
-      pi.registerTool(
-        createWakeTool(services, async (command, args, options) => {
+      const wakeDispatcher = createWakeDispatcher(
+        async (command, args, options) => {
           const result = await pi.exec(command, args, options);
           return {
             code: result.code ?? -1,
             killed: result.killed,
           };
-        })
+        }
       );
+      pi.registerTool(createMissionReadTool(services));
+      pi.registerTool(createSendTool(services, wakeDispatcher));
+      pi.registerTool(createReadTool(services));
+      pi.registerTool(createAckTool(services));
+      pi.registerTool(createReplyTool(services, wakeDispatcher));
+      pi.registerTool(createTaskClaimTool(services));
+      pi.registerTool(createTaskReleaseTool(services));
+      pi.registerTool(createRosterTool(services));
+      pi.registerTool(createWakeTool(services, wakeDispatcher));
       registered = true;
     } catch (error) {
       reportMycelialFooterSlot(pi.events);
