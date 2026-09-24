@@ -133,6 +133,56 @@ printf '{"result":{}}\\n'
 `
     );
     await nodeFileSystem.chmod(fakeHerdr, 0o700);
+    const fakeJq = join(fakeBin, "jq");
+    await writeFile(
+      fakeJq,
+      `#!/usr/bin/env bun
+const args = Bun.argv.slice(2);
+const query = args[1] ?? "";
+const input = args.length >= 3
+  ? await Bun.file(args.at(-1)).text()
+  : await Bun.stdin.text();
+const data = JSON.parse(input);
+
+if (query.includes("def rows:")) {
+  const agents = data.agents ?? data;
+  const rows = Array.isArray(agents)
+    ? agents.map((entry) =>
+        typeof entry === "string"
+          ? [entry, ""]
+          : [entry.role ?? entry.name, entry.preset ?? ""]
+      )
+    : Object.entries(agents).map(([role, metadata]) => [
+        role,
+        metadata?.preset ?? "",
+      ]);
+  process.stdout.write(rows.map((row) => row.join("\\t")).join("\\n"));
+} else {
+  const key = query.includes(".tab_id?") ? "tab_id" : "pane_id";
+  const findValue = (value) => {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findValue(item);
+        if (found !== undefined) return found;
+      }
+      return undefined;
+    }
+    if (value && typeof value === "object") {
+      if (typeof value[key] === "string") return value[key];
+      for (const item of Object.values(value)) {
+        const found = findValue(item);
+        if (found !== undefined) return found;
+      }
+    }
+    return undefined;
+  };
+  const result = findValue(data);
+  if (result === undefined) process.exit(1);
+  console.log(result);
+}
+`
+    );
+    await nodeFileSystem.chmod(fakeJq, 0o700);
 
     const execution = await execFileAsync("bash", [result.launcherFile], {
       env: {

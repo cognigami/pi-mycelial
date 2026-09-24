@@ -133,7 +133,9 @@ This is mechanical enablement, not the first domain layer.
 - Add the standard kit-backed package metadata and Justfile recipes.
 - Use package name `mycelial` unless a different installed identity is desired.
 - Declare Pi host packages and `pi-extension-kit` as peers; make the kit an
-  optional peer and a `file:../pi-extension-kit` development dependency.
+  optional peer. For local development, resolve the sibling kit source through
+  `tsconfig.json` and invoke its tooling directly rather than installing it as a
+  `file:` dependency.
 - Add the `pi.extensions: ["./dist/index.js"]` manifest entry.
 - Start with an empty composition root that loads without registering tools.
 - Add one package-load smoke test.

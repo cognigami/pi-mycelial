@@ -7,6 +7,9 @@
     "noEmit": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
+    "paths": {
+      "pi-extension-kit/*": ["../pi-extension-kit/src/*.ts"]
+    },
     "types": ["bun-types"]
   },
   "include": ["src/**/*.ts"]

@@ -2,14 +2,13 @@ set script-interpreter := ["bash", "-eu", "-o", "pipefail"]
 set positional-arguments
 
 bun := require("bun")
-sync_tooling := "../pi-extension-kit/scripts/tooling.ts"
-tooling := "./node_modules/pi-extension-kit/scripts/tooling.ts"
+tooling := "../pi-extension-kit/scripts/tooling.ts"
 
 default:
   @just --list --justfile '{{justfile()}}'
 
 sync:
-  {{bun}} {{sync_tooling}} sync
+  {{bun}} {{tooling}} sync
 
 build: clean compile test lint
   {{bun}} {{tooling}} package
