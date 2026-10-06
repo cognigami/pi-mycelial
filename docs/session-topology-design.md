@@ -4,7 +4,8 @@
 
 Proposed for implementation. This design evolves the accepted mission launch UX
 without changing the durable mailbox protocol or making Mycelial a resident
-process supervisor.
+process supervisor. Execution is staged in
+[`session-topology-implementation-plan.md`](session-topology-implementation-plan.md).
 
 ## Context
 
@@ -93,7 +94,8 @@ builder=3     -> builder-1, builder-2, builder-3
 
 Every expanded identifier must pass the existing role identifier validation.
 Expansion must reject collisions, including explicit names that collide with a
-generated name. The coordinator remains a singleton: initialization adds one
+generated name, and must reject `all`, which remains the reserved broadcast
+target. The coordinator remains a singleton: initialization adds one
 `coordinator` participant by default, accepts an explicitly listed singleton,
 and rejects coordinator multiplicity greater than one. `--no-coordinator`
 continues to opt out.
