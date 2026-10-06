@@ -256,6 +256,8 @@ function repositoryGuidanceTemplate(): string {
 - Keep durable designs, plans, and engineering decisions in repository Markdown files.
 - Document the repository's supported build, test, lint, and formatting commands here before relying on them.
 - Do not invent project commands; ask the operator when the supported workflow is unclear.
+- Do not use \`/tmp\` for mission work; keep scratch artifacts in repository-approved locations or use a dedicated Pi scratch tool.
+- Treat a sandbox denial as a workflow error. Do not bypass it through alternate commands, paths, shells, or wrappers; use the dedicated Pi tool, or stop and report the blocker.
 
 ## Mycelial missions
 

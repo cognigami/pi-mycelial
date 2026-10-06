@@ -423,11 +423,14 @@ stable. They use disjoint files and must not edit `src/mission-init.ts` or
      operations;
    - parallel read-only investigation and review are safe;
    - claims do not lock files.
-6. Keep context compaction under Pi and keep rotation/dynamic scaling outside
+6. Preserve concise sandbox discipline in package guidance: do not use `/tmp`
+   directly, never bypass a sandbox denial, use the dedicated Pi tool for the
+   operation, and stop with a blocker when no such tool applies.
+7. Keep context compaction under Pi and keep rotation/dynamic scaling outside
    current behavior.
-7. Update design status only after implementation and validation actually meet
+8. Update design status only after implementation and validation actually meet
    its acceptance criteria.
-8. Do not describe or depend on any unrelated session-management product.
+9. Do not describe or depend on any unrelated session-management product.
 
 #### Exit criterion
 

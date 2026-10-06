@@ -37,6 +37,12 @@ For one independently claimable request, use the request message ID as both the 
 - Roster presence and `accepted` receipts do not establish ownership; only a live claim does.
 - Before `agent_task_release`, report the result and validation through the existing mail thread, then release the claim.
 
+## Sandbox discipline
+
+Do not use `/tmp` for mission work; it triggers operator approval and breaks autonomous execution. Keep scratch artifacts in repository-approved locations or use a dedicated Pi scratch tool.
+
+Treat a sandbox denial as evidence that the attempted workflow is wrong. Do not retry through alternate commands, paths, shells, or wrappers. Use the dedicated Pi tool for the operation; if none applies, stop and report the blocker rather than improvising a bypass.
+
 ## Automatic live notification
 
 `agent_mail_send` and `agent_mail_reply` durably publish mail first, then automatically make a best-effort wake-up attempt for each delivered recipient. Inspect their notification results. Do not make a routine second `agent_wake` call after a successful automatic notification.

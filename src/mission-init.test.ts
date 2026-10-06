@@ -64,9 +64,10 @@ test("initializes mission controls and an executable multi-tab launcher", async 
     );
     expect(result.repositoryGuidanceCreated).toBeTrue();
     expect(result.repositoryGuidanceFile).toBe(join(cwd, "AGENTS.md"));
-    expect(await readFile(result.repositoryGuidanceFile, "utf8")).toContain(
-      "# Project Guidance"
-    );
+    const guidance = await readFile(result.repositoryGuidanceFile, "utf8");
+    expect(guidance).toContain("# Project Guidance");
+    expect(guidance).toContain("Do not use `/tmp` for mission work");
+    expect(guidance).toContain("Treat a sandbox denial as a workflow error");
 
     const launcher = await readFile(result.launcherFile, "utf8");
     expect(launcher).toContain("herdr tab create");
