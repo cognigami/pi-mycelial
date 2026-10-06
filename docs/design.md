@@ -102,6 +102,9 @@ The generated launcher is user-invoked composition, not mailbox process
 control. It may perform startup prompts and best-effort wake-ups, but durable
 mail remains authoritative and always precedes a notification. See
 [`mission-ux-design.md`](mission-ux-design.md) for the accepted UX contract.
+The proposed participant-pool, persistent-session, and idempotent relaunch
+extension is specified separately in
+[`session-topology-design.md`](session-topology-design.md).
 
 ## Mission layout
 

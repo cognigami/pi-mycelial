@@ -6,6 +6,9 @@ Implemented for work package 12, with live operator-project acceptance pending.
 The fixed two-agent launcher in `scripts/launch-dogfood-herdr.sh` validated the
 Herdr mechanics; `/mycelial init`, `agent_mission_read`, optional role preset
 metadata, and generated per-mission launchers now provide the generic workflow.
+The proposed evolution from one newly created session per role to reusable,
+hierarchical participant sessions is specified in
+[`session-topology-design.md`](session-topology-design.md).
 
 ## Problem
 
