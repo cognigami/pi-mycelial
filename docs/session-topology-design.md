@@ -143,13 +143,15 @@ metadata. Its conceptual shape is:
       "sessionId": "<pi-session-id>",
       "sessionFile": "<absolute-jsonl-path>",
       "name": "release-42: coordinator",
-      "parent": null
+      "parent": null,
+      "herdrName": "<mission-isolated-live-agent-name>"
     },
     "builder-1": {
       "sessionId": "<pi-session-id>",
       "sessionFile": "<absolute-jsonl-path>",
       "name": "release-42: builder-1",
-      "parent": "coordinator"
+      "parent": "coordinator",
+      "herdrName": "<mission-isolated-live-agent-name>"
     }
   }
 }
@@ -158,7 +160,9 @@ metadata. Its conceptual shape is:
 The exact session file path is recorded because Pi may be using a custom session
 directory. Launch must reopen the created file rather than search whichever
 session directory happens to be configured later. The session ID remains
-recorded for validation and trusted runtime correlation.
+recorded for validation and trusted runtime correlation. `herdrName` is an
+explicit Herdr-global transport identity derived from the unique prepared Pi
+session; legacy manifests may omit it and retain role-named launch behavior.
 
 `sessions.json` is static initialization output in this design. It is not a
 roster, liveness database, context monitor, or current-process registry. Runtime
@@ -229,18 +233,22 @@ become a daemon or periodically reconcile processes.
 For each selected participant, the launcher:
 
 1. resolves the participant's preset from `agents.json` and exact Pi session
-   from `sessions.json`;
-2. checks whether a same-named Herdr agent is already live;
-3. reuses a live agent instead of creating a duplicate process;
+   plus explicit Herdr-global agent name from `sessions.json`;
+2. checks whether that mission-isolated Herdr agent is already live;
+3. reuses it instead of creating a duplicate process;
 4. otherwise creates a tab and starts Pi by reopening the exact session file;
 5. supplies the existing trusted `--mycelial-mission` and
    `--mycelial-role <participant>` bindings; and
 6. forwards an optional preset exactly as today.
 
-A participant's Herdr agent name remains its unique participant identity so the
-existing post-send notification adapter can wake it without a second mapping.
-The launcher reports each participant as `reused` or `started`, together with
-its tab and pane information when newly started.
+Participant identity remains the durable mailbox address. Herdr agent names are
+separate transport identities derived from the prepared Pi session and recorded
+in `sessions.json`, because Herdr names are global across concurrently live
+workspaces and missions. The post-send notification adapter resolves the
+participant through this mapping. Legacy manifests without the field continue
+to use the participant name, preserving already-generated launchers. The
+launcher reports each participant as `reused` or `started`, together with its
+Herdr agent name and tab/pane information when newly started.
 
 The launcher checks immediately before each start and treats a Herdr name
 collision as a visible partial-launch failure, preserving the current policy of

@@ -13,6 +13,10 @@ import {
 import { parseJson } from "./json-codec";
 import { normalizeParticipant } from "./participants";
 import { MissionPaths } from "./paths";
+import {
+  parseSessionManifest,
+  type SessionManifestV1,
+} from "./session-topology";
 
 export interface AgentConfig {
   role: RoleId;
@@ -25,6 +29,7 @@ export interface MissionSnapshot {
   agents: AgentConfig[];
   roles: RoleId[];
   repos: RepoAlias[];
+  sessions?: SessionManifestV1;
 }
 
 export async function loadMission(
@@ -41,6 +46,16 @@ export async function loadMission(
     parseAgents
   );
   const roles = agents.map((agent) => agent.role);
+  let sessions: SessionManifestV1 | undefined;
+  try {
+    await requireRegular(fs, paths.sessionsFile());
+    sessions = parseSessionManifest(
+      (await fs.readFile(paths.sessionsFile())).toString("utf8"),
+      agents
+    );
+  } catch (error) {
+    if (!isMissing(error)) throw error;
+  }
   let repos: RepoAlias[] = [];
   try {
     await requireRegular(fs, paths.reposFile());
@@ -52,7 +67,14 @@ export async function loadMission(
   } catch (error) {
     if (!isMissing(error)) throw error;
   }
-  return { paths, agents, roles, repos };
+  return { paths, agents, roles, repos, sessions };
+}
+
+export function resolveHerdrAgentName(
+  snapshot: MissionSnapshot,
+  role: RoleId
+): string {
+  return snapshot.sessions?.sessions[role]?.herdrName ?? role;
 }
 
 export function resolveRecipients(

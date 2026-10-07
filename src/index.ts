@@ -2,6 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createExtensionFiles } from "pi-extension-kit/files";
 import { runMycelialCommand } from "./command";
 import { reportMycelialFooterSlot } from "./footer-slot";
+import { resolveHerdrAgentName } from "./mission";
 import { MycelialRuntime } from "./runtime";
 import { createAckTool } from "./tool/ack";
 import { createMissionReadTool } from "./tool/mission-read";
@@ -55,7 +56,9 @@ export default function mycelialExtension(pi: ExtensionAPI): void {
             code: result.code ?? -1,
             killed: result.killed,
           };
-        }
+        },
+        (recipient) =>
+          resolveHerdrAgentName(services.mailbox.mission, recipient)
       );
       pi.registerTool(createMissionReadTool(services));
       pi.registerTool(createSendTool(services, wakeDispatcher));

@@ -238,8 +238,8 @@ delivery behavior as in v2.
 Mycelial does not add a receiver-side polling notifier or inbox watcher. Durable
 mail storage alone does not wake an idle agent. After durable send or reply
 succeeds, the outer tool workflow automatically sends a fixed,
-task-content-free prompt to each delivered role-named Herdr agent. Notification
-results are reported separately; failure or cancellation never rolls back or
+task-content-free prompt to each delivered participant's mapped Herdr agent.
+Notification results are reported separately; failure or cancellation never rolls back or
 invalidates mail. `agent_wake` remains an explicit retry path. The live
 `study-guide` evidence and the boundary against mission supervision are recorded
 in [`coordination-liveness-design.md`](coordination-liveness-design.md).

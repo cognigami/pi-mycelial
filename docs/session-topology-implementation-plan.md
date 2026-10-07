@@ -353,12 +353,14 @@ simulated cleanup failure.
 4. Reopen the exact recorded file with Pi's explicit session option. Do not use
    an ID-only mode that creates a replacement when missing. Do not pass the name
    again on every resume.
-5. Change same-named live Herdr handling from fatal collision to idempotent
+5. Change same-agent live Herdr handling from fatal collision to idempotent
    reuse/no-op. Continue treating an actual start-time name race as a visible
    partial-launch failure and leave created tabs available for inspection.
-6. Keep participant identity as the Herdr agent name so existing durable-mail
-   notification needs no mapping change.
-7. Report `started` and `reused` participants separately. Preserve subset
+6. Record a mission-isolated Herdr transport name per participant in
+   `sessions.json`. Resolve durable-mail notifications through that mapping;
+   retain participant-name fallback only for legacy manifests.
+7. Report `started` and `reused` participants separately, including the mapped
+   Herdr name. Preserve subset
    selection and reject duplicate or unknown selections.
 8. Replace the coordinator bootstrap text with one idempotent reconciliation
    prompt: read mission artifacts, roster, mail, requests, and claims; create

@@ -144,6 +144,9 @@ test("generated launcher starts exact sessions and idempotently reuses live agen
       })
     );
     const manifest = JSON.parse(await readFile(result.sessionsFile, "utf8"));
+    const coordinatorAgent = manifest.sessions.coordinator.herdrName;
+    const implementerAgent = manifest.sessions.implementer.herdrName;
+    const reviewerAgent = manifest.sessions.reviewer.herdrName;
     const fakeHerdr = join(fakeBin, "herdr");
     await writeFile(
       fakeHerdr,
@@ -161,7 +164,7 @@ if [ "$1 $2" = "tab create" ]; then
   exit 0
 fi
 if [ "$1 $2" = "agent start" ]; then
-  [ "\${HERDR_FAKE_RACE_ROLE:-}" = "$3" ] && exit 9
+  [ "\${HERDR_FAKE_RACE_AGENT:-}" = "$3" ] && exit 9
   printf '%s\\n' "$3" >> "$HERDR_FAKE_STATE"
   exit 0
 fi
@@ -187,13 +190,13 @@ printf '{"result":{}}\\n'
     let calls = await readFile(herdrLog, "utf8");
     expect(calls.match(/tab create/g)).toHaveLength(3);
     expect(calls).toContain(
-      `agent start coordinator --kind pi --pane p1 -- --session ${manifest.sessions.coordinator.sessionFile} --mycelial-mission live-test --mycelial-role coordinator`
+      `agent start ${coordinatorAgent} --kind pi --pane p1 -- --session ${manifest.sessions.coordinator.sessionFile} --mycelial-mission live-test --mycelial-role coordinator`
     );
     expect(calls).toContain(
-      `agent start reviewer --kind pi --pane p3 -- --session ${manifest.sessions.reviewer.sessionFile} --mycelial-mission live-test --mycelial-role reviewer --presets:preset domain-auditor`
+      `agent start ${reviewerAgent} --kind pi --pane p3 -- --session ${manifest.sessions.reviewer.sessionFile} --mycelial-mission live-test --mycelial-role reviewer --presets:preset domain-auditor`
     );
     expect(calls.match(/agent prompt/g)).toHaveLength(1);
-    expect(calls).toContain("agent prompt coordinator");
+    expect(calls).toContain(`agent prompt ${coordinatorAgent}`);
     expect(calls).toContain("Reconcile mission live-test idempotently");
 
     await writeFile(herdrLog, "");
@@ -216,7 +219,7 @@ printf '{"result":{}}\\n'
       })
     ).rejects.toMatchObject({ code: 1 });
 
-    await writeFile(herdrState, "coordinator\nimplementer\n");
+    await writeFile(herdrState, `${coordinatorAgent}\n${implementerAgent}\n`);
     await writeFile(herdrLog, "");
     const mixed = await execFileAsync("bash", [result.launcherFile], {
       env: environment,
@@ -227,28 +230,28 @@ printf '{"result":{}}\\n'
     expect(calls.match(/tab create/g)).toHaveLength(1);
     expect(calls).not.toContain("agent prompt");
 
-    await writeFile(herdrState, "coordinator\nimplementer\n");
+    await writeFile(herdrState, `${coordinatorAgent}\n${implementerAgent}\n`);
     await writeFile(herdrLog, "");
     await execFileAsync("bash", [result.launcherFile, "reviewer"], {
       env: environment,
     });
     calls = await readFile(herdrLog, "utf8");
     expect(calls.match(/tab create/g)).toHaveLength(1);
-    expect(calls).toContain("agent start reviewer");
-    expect(calls).not.toContain("agent start coordinator");
-    expect(calls).toContain("agent prompt reviewer");
+    expect(calls).toContain(`agent start ${reviewerAgent}`);
+    expect(calls).not.toContain(`agent start ${coordinatorAgent}`);
+    expect(calls).toContain(`agent prompt ${reviewerAgent}`);
     expect(calls).toContain("Resume as participant reviewer");
 
-    await writeFile(herdrState, "coordinator\nimplementer\n");
+    await writeFile(herdrState, `${coordinatorAgent}\n${implementerAgent}\n`);
     await writeFile(herdrLog, "");
     await expect(
       execFileAsync("bash", [result.launcherFile, "reviewer"], {
-        env: { ...environment, HERDR_FAKE_RACE_ROLE: "reviewer" },
+        env: { ...environment, HERDR_FAKE_RACE_AGENT: reviewerAgent },
       })
     ).rejects.toMatchObject({ code: 9 });
     calls = await readFile(herdrLog, "utf8");
     expect(calls).toContain("tab create");
-    expect(calls).toContain("agent start reviewer");
+    expect(calls).toContain(`agent start ${reviewerAgent}`);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

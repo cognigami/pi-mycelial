@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { nodeFileSystem } from "./filesystem";
 import { roleId } from "./identifiers";
-import { loadMission, readMissionDocument, resolveRecipients } from "./mission";
+import {
+  loadMission,
+  readMissionDocument,
+  resolveHerdrAgentName,
+  resolveRecipients,
+} from "./mission";
 
 async function withMission<T>(
   agents: unknown,
@@ -180,6 +185,35 @@ test("bounds diagnostics for malformed agent metadata", async () => {
     const message = failure instanceof Error ? failure.message : "";
     expect(message.length).toBeLessThan(512);
     expect(message).not.toContain("x".repeat(100));
+  });
+});
+
+test("resolves explicit Herdr transport names and preserves legacy role fallback", async () => {
+  await withMission(["coordinator"], async (root) => {
+    const manifest = {
+      formatVersion: 1,
+      sessions: {
+        coordinator: {
+          sessionId: "session-one",
+          sessionFile: "/sessions/coordinator.jsonl",
+          name: "mission: coordinator",
+          parent: null,
+          herdrName: "m-coordina-0123456789abcdef0123",
+        },
+      },
+    };
+    await writeFile(join(root, "sessions.json"), JSON.stringify(manifest));
+    let mission = await loadMission(nodeFileSystem, root);
+    expect(resolveHerdrAgentName(mission, roleId("coordinator"))).toBe(
+      "m-coordina-0123456789abcdef0123"
+    );
+
+    delete (manifest.sessions.coordinator as { herdrName?: string }).herdrName;
+    await writeFile(join(root, "sessions.json"), JSON.stringify(manifest));
+    mission = await loadMission(nodeFileSystem, root);
+    expect(resolveHerdrAgentName(mission, roleId("coordinator"))).toBe(
+      "coordinator"
+    );
   });
 });
 

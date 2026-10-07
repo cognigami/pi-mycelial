@@ -168,8 +168,8 @@ mission participants. Subset selection supports staged startup and recovery.
 
 Mission launch automation is distinct from durable mailbox storage. After a
 bound `agent_mail_send` or `agent_mail_reply` publishes durable mail, its outer
-tool workflow automatically invokes each delivered role-named Herdr agent with a
-fixed notification containing no task content. Notification failure never rolls
+tool workflow automatically invokes each delivered participant's mapped Herdr
+agent with a fixed notification containing no task content. Notification failure never rolls
 back or invalidates mail. The bound `agent_wake` tool remains a narrow explicit
 retry path; it rejects self-targets and does not accept model-provided prompt
 text.

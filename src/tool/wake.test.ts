@@ -43,6 +43,27 @@ test("sends a fixed Herdr wake-up to a configured mission role", async () => {
   expect(result.details).toEqual({ status: "sent", recipient: "builder" });
 });
 
+test("resolves a mission-isolated Herdr target without changing mailbox identity", async () => {
+  const calls: string[][] = [];
+  const dispatcher = createWakeDispatcher(
+    async (_command, args) => {
+      calls.push(args);
+      return { code: 0, killed: false };
+    },
+    () => "m-builder-cbca2c38c529b63130c0"
+  );
+
+  const result = await dispatcher.wake(roleId("builder"));
+
+  expect(calls).toEqual([
+    ["agent", "prompt", "m-builder-cbca2c38c529b63130c0", WAKE_PROMPT],
+  ]);
+  expect(result).toEqual({
+    status: "sent",
+    recipient: roleId("builder"),
+  });
+});
+
 test("coalesces concurrent wakes for one role without suppressing later wakes", async () => {
   let calls = 0;
   let release: (() => void) | undefined;

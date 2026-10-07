@@ -148,14 +148,30 @@ exit 0
     const second = await execFileAsync("bash", [result.launcherFile], { env });
     expect(second.stdout.match(/reused:/g)).toHaveLength(4);
     expect(await readFile(count, "utf8")).toBe("4");
-    expect((await readFile(state, "utf8")).trim().split("\n").sort()).toEqual([
-      "builder-1",
-      "builder-2",
-      "coordinator",
-      "reviewer",
-    ]);
-
     const manifest = JSON.parse(await readFile(result.sessionsFile, "utf8"));
+    expect((await readFile(state, "utf8")).trim().split("\n").sort()).toEqual(
+      Object.values(manifest.sessions)
+        .map((session) => (session as { herdrName: string }).herdrName)
+        .sort()
+    );
+
+    const other = await initializeMission(nodeFileSystem, {
+      mission: "reusable-two",
+      participants: command.participants,
+      cwd,
+      sessionDirectory: join(root, "sessions"),
+      config: { ...DEFAULT_CONFIG, missionRoot: join(root, "missions") },
+    });
+    const otherLaunch = await execFileAsync("bash", [other.launcherFile], {
+      env,
+    });
+    expect(otherLaunch.stdout).not.toContain("reused:");
+    expect(otherLaunch.stdout.match(/started:/g)).toHaveLength(4);
+    expect(await readFile(count, "utf8")).toBe("8");
+    expect(
+      new Set((await readFile(state, "utf8")).trim().split("\n")).size
+    ).toBe(8);
+
     const expected = manifest.sessions["builder-1"].sessionFile as string;
     const saved = join(root, "saved.jsonl");
     await writeFile(saved, await readFile(expected));

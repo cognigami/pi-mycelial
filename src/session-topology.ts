@@ -7,7 +7,10 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { publishImmutable } from "./atomic-files";
 import type { FileSystem } from "./filesystem";
+import { deriveHerdrAgentName } from "./herdr-agent-name";
 import {
+  type HerdrAgentName,
+  herdrAgentName,
   missionId,
   type RoleId,
   roleId,
@@ -18,7 +21,19 @@ import {
 import type { Participant } from "./participants";
 
 const MANIFEST_FIELDS = new Set(["formatVersion", "sessions"]);
-const SESSION_FIELDS = new Set(["sessionId", "sessionFile", "name", "parent"]);
+const SESSION_FIELDS = new Set([
+  "sessionId",
+  "sessionFile",
+  "name",
+  "parent",
+  "herdrName",
+]);
+const REQUIRED_SESSION_FIELDS = new Set([
+  "sessionId",
+  "sessionFile",
+  "name",
+  "parent",
+]);
 const MAX_MANIFEST_BYTES = 1_000_000;
 const MAX_JSON_DEPTH = 100;
 const MAX_DORMANT_SESSION_BYTES = 64 * 1024;
@@ -28,6 +43,8 @@ export interface ParticipantSession {
   sessionFile: string;
   name: string;
   parent: RoleId | null;
+  /** Explicit Herdr-global identity. Absent only in legacy manifests. */
+  herdrName?: HerdrAgentName;
 }
 
 export interface SessionManifestV1 {
@@ -107,12 +124,18 @@ export function validateSessionTopology(
   const coordinator = expected.has(roleId("coordinator"));
   const sessionIds = new Set<SessionId>();
   const sessionFiles = new Set<string>();
+  const herdrNames = new Set<HerdrAgentName>();
   for (const participant of actual) {
     const value = requireObject(
       sessions[participant],
       `session for participant ${participant}`
     );
-    requireExactFields(value, SESSION_FIELDS, "participant session");
+    requireRequiredFields(
+      value,
+      REQUIRED_SESSION_FIELDS,
+      SESSION_FIELDS,
+      "participant session"
+    );
     const parsedSessionId = sessionId(value.sessionId);
     if (sessionIds.has(parsedSessionId))
       throw new ValidationError("Session IDs must be unique");
@@ -122,6 +145,13 @@ export function validateSessionTopology(
     if (sessionFiles.has(sessionFile))
       throw new ValidationError("Session file paths must be unique");
     sessionFiles.add(sessionFile);
+
+    if (value.herdrName !== undefined) {
+      const parsedHerdrName = herdrAgentName(value.herdrName);
+      if (herdrNames.has(parsedHerdrName))
+        throw new ValidationError("Herdr agent names must be unique");
+      herdrNames.add(parsedHerdrName);
+    }
 
     if (typeof value.name !== "string" || value.name.length === 0)
       throw new ValidationError("Session names must be non-empty");
@@ -219,11 +249,13 @@ export function prepareSessionTopology(
       throw new Error("Coordinator session must be prepared before workers");
 
     selectedSessionDir ??= manager.getSessionDir();
+    const preparedSessionId = sessionId(manager.getSessionId());
     const record: ParticipantSession = {
-      sessionId: sessionId(manager.getSessionId()),
+      sessionId: preparedSessionId,
       sessionFile: requireSafeAbsolutePath(sessionFile),
       name,
       parent,
+      herdrName: deriveHerdrAgentName(participant.role, preparedSessionId),
     };
     sessions[participant.role] = record;
     files.push({
@@ -406,6 +438,9 @@ function normalizeManifest(manifest: SessionManifestV1): SessionManifestV1 {
       sessionFile: value.sessionFile,
       name: value.name,
       parent: value.parent === null ? null : roleId(value.parent),
+      ...(value.herdrName === undefined
+        ? {}
+        : { herdrName: herdrAgentName(value.herdrName) }),
     };
   }
   return { formatVersion: 1, sessions };
@@ -424,6 +459,20 @@ function requireExactFields(
 ): void {
   const keys = Object.keys(value);
   if (keys.length !== expected.size || keys.some((key) => !expected.has(key)))
+    throw new ValidationError(`${label} contains unknown or missing fields`);
+}
+
+function requireRequiredFields(
+  value: Record<string, unknown>,
+  required: ReadonlySet<string>,
+  allowed: ReadonlySet<string>,
+  label: string
+): void {
+  const keys = Object.keys(value);
+  if (
+    keys.some((key) => !allowed.has(key)) ||
+    [...required].some((key) => !Object.hasOwn(value, key))
+  )
     throw new ValidationError(`${label} contains unknown or missing fields`);
 }
 

@@ -45,14 +45,24 @@ export interface WakeDispatcher {
   wake(recipient: RoleId, signal?: AbortSignal): Promise<WakeOutcome>;
 }
 
-export function createWakeDispatcher(run: WakeCommandRunner): WakeDispatcher {
+export type WakeTargetResolver = (recipient: RoleId) => string;
+
+export function createWakeDispatcher(
+  run: WakeCommandRunner,
+  resolveTarget: WakeTargetResolver = (recipient) => recipient
+): WakeDispatcher {
   const inFlight = new Map<RoleId, Promise<WakeOutcome>>();
   return {
     async wake(recipient, signal) {
       const pending = inFlight.get(recipient);
       if (pending) return pending;
 
-      const current = dispatchWake(run, recipient, signal);
+      const current = dispatchWake(
+        run,
+        recipient,
+        resolveTarget(recipient),
+        signal
+      );
       inFlight.set(recipient, current);
       try {
         return await current;
@@ -66,6 +76,7 @@ export function createWakeDispatcher(run: WakeCommandRunner): WakeDispatcher {
 async function dispatchWake(
   run: WakeCommandRunner,
   recipient: RoleId,
+  target: string,
   signal?: AbortSignal
 ): Promise<WakeOutcome> {
   if (signal?.aborted)
@@ -77,7 +88,7 @@ async function dispatchWake(
   try {
     const result = await run(
       "herdr",
-      ["agent", "prompt", recipient, WAKE_PROMPT],
+      ["agent", "prompt", target, WAKE_PROMPT],
       { signal, timeout: WAKE_TIMEOUT_MS }
     );
     if (result.code === 0) return { status: "sent", recipient };
@@ -104,7 +115,7 @@ export function createWakeTool(
     name: "agent_wake",
     label: "Wake Mission Agent",
     description:
-      "Retry a best-effort live wake-up for one configured mission role after durable Mycelial mail succeeds. Sends a fixed notification through the role-named Herdr agent; durable mail remains authoritative.",
+      "Retry a best-effort live wake-up for one configured mission role after durable Mycelial mail succeeds. Sends a fixed notification through the participant's mission-isolated Herdr agent; durable mail remains authoritative.",
     promptSnippet:
       "Retry waking a configured mission role after automatic notification fails",
     promptGuidelines: [

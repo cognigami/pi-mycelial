@@ -422,6 +422,7 @@ SESSION_IDS=()
 SESSION_FILES=()
 SESSION_NAMES=()
 SESSION_PARENTS=()
+HERDR_NAMES=()
 SELECTED_ROLES=()
 STARTED_ROLES=()
 REUSED_ROLES=()
@@ -471,20 +472,23 @@ SESSION_ROWS="$(
     then error("invalid sessions manifest")
     else .sessions | to_entries[] |
       if (.value | type) != "object" then error("invalid session entry") else
-      [.key, .value.sessionId, .value.sessionFile, .value.name, (.value.parent // "")] | @tsv end
+      [.key, .value.sessionId, .value.sessionFile, .value.name, (.value.parent // "-"), (.value.herdrName // .key)] | @tsv end
     end
   ' "$SESSIONS_FILE"
 )" || fail "could not parse sessions.json"
-while IFS=$'\\t' read -r role session_id session_file session_name parent; do
+while IFS=$'\\t' read -r role session_id session_file session_name parent herdr_name; do
   [[ "$role" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || fail "invalid participant in sessions.json: $role"
   [[ "$session_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || fail "invalid session id for $role"
   [[ "$session_file" == /* && -n "$session_name" ]] || fail "invalid session metadata for $role"
+  [[ "$parent" == "-" ]] && parent=""
   [[ -z "$parent" || "$parent" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || fail "invalid session parent for $role"
+  [[ "$herdr_name" =~ ^[a-z][a-z0-9_-]{0,31}$ ]] || fail "invalid Herdr agent name for $role"
   SESSION_ROLES+=("$role")
   SESSION_IDS+=("$session_id")
   SESSION_FILES+=("$session_file")
   SESSION_NAMES+=("$session_name")
   SESSION_PARENTS+=("$parent")
+  HERDR_NAMES+=("$herdr_name")
 done <<<"$SESSION_ROWS"
 
 role_index() {
@@ -501,6 +505,11 @@ session_index() {
   done
   return 1
 }
+herdr_name_for_role() {
+  local index
+  index="$(session_index "$1")"
+  printf '%s' "\${HERDR_NAMES[$index]}"
+}
 
 ((\${#SESSION_ROLES[@]} == \${#ROLES[@]})) || fail "agents.json and sessions.json participant sets differ"
 for ((left = 0; left < \${#ROLES[@]}; left++)); do
@@ -514,6 +523,7 @@ for ((left = 0; left < \${#SESSION_ROLES[@]}; left++)); do
     [[ "\${SESSION_ROLES[$left]}" != "\${SESSION_ROLES[$right]}" ]] || fail "duplicate participant in sessions.json: \${SESSION_ROLES[$left]}"
     [[ "\${SESSION_IDS[$left]}" != "\${SESSION_IDS[$right]}" ]] || fail "duplicate session id in sessions.json"
     [[ "\${SESSION_FILES[$left]}" != "\${SESSION_FILES[$right]}" ]] || fail "duplicate session file in sessions.json"
+    [[ "\${HERDR_NAMES[$left]}" != "\${HERDR_NAMES[$right]}" ]] || fail "duplicate Herdr agent name in sessions.json"
   done
   role_index "\${SESSION_ROLES[$left]}" >/dev/null || fail "unknown sessions.json participant: \${SESSION_ROLES[$left]}"
   expected_parent=""
@@ -581,7 +591,8 @@ create_agent_tab() {
 
 cd "$REPO_ROOT"
 for role in "\${SELECTED_ROLES[@]}"; do
-  if herdr agent get "$role" >/dev/null 2>&1; then
+  herdr_name="$(herdr_name_for_role "$role")"
+  if herdr agent get "$herdr_name" >/dev/null 2>&1; then
     REUSED_ROLES+=("$role")
     continue
   fi
@@ -597,7 +608,7 @@ for role in "\${SELECTED_ROLES[@]}"; do
   agent_args=(--session "$session_file" --mycelial-mission "$MISSION_ID" --mycelial-role "$role")
   if [[ -n "$preset" ]]; then agent_args+=(--presets:preset "$preset"); fi
   printf 'Starting %s in tab=%s pane=%s...\\n' "$role" "$CREATED_TAB" "$CREATED_PANE"
-  herdr agent start "$role" --kind "$AGENT_KIND" --pane "$CREATED_PANE" -- "\${agent_args[@]}"
+  herdr agent start "$herdr_name" --kind "$AGENT_KIND" --pane "$CREATED_PANE" -- "\${agent_args[@]}"
   STARTED_ROLES+=("$role")
 done
 
@@ -608,7 +619,7 @@ done
 if ((\${#STARTED_ROLES[@]} > 0)); then
   for role in "\${STARTED_ROLES[@]}"; do
     if [[ "$role" == "coordinator" ]]; then
-      herdr agent prompt "$role" \
+      herdr agent prompt "$(herdr_name_for_role "$role")" \
         "Reconcile mission $MISSION_ID idempotently. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, read canonical artifacts, refresh agent_roster, read durable mail, requests, receipts, and claims, and create assignments only where durable state requires them. Never blindly repeat mission decomposition. Durable send automatically notifies recipients; use agent_wake only to retry a reported failure. Do not implement worker tasks." \
         --wait --timeout 120000
       break
@@ -616,7 +627,7 @@ if ((\${#STARTED_ROLES[@]} > 0)); then
   done
   if [[ "$coordinator_selected" == "false" ]]; then
     for role in "\${STARTED_ROLES[@]}"; do
-      herdr agent prompt "$role" \
+      herdr agent prompt "$(herdr_name_for_role "$role")" \
         "Resume as participant $role for mission $MISSION_ID. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, refresh agent_roster, read durable mail and current claims, continue only durable assigned work, and otherwise report ready and wait."
     done
   fi
@@ -625,10 +636,11 @@ fi
 trap - ERR
 printf '\\nMission launch reconciled: %s\\n' "$MISSION_ID"
 if ((\${#REUSED_ROLES[@]} > 0)); then
-  for role in "\${REUSED_ROLES[@]}"; do printf 'reused: %s\\n' "$role"; done
+  for role in "\${REUSED_ROLES[@]}"; do printf 'reused: %s agent=%s\\n' "$role" "$(herdr_name_for_role "$role")"; done
 fi
 for ((index = 0; index < \${#STARTED_ROLES[@]}; index++)); do
-  printf 'started: %s tab=%s pane=%s\\n' "\${STARTED_ROLES[$index]}" "\${TABS[$index]}" "\${PANES[$index]}"
+  role="\${STARTED_ROLES[$index]}"
+  printf 'started: %s agent=%s tab=%s pane=%s\\n' "$role" "$(herdr_name_for_role "$role")" "\${TABS[$index]}" "\${PANES[$index]}"
 done
 `;
 }

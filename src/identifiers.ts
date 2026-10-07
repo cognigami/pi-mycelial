@@ -8,6 +8,7 @@ export type SessionId = Brand<string, "SessionId">;
 export type TaskId = Brand<string, "TaskId">;
 export type RepoAlias = Brand<string, "RepoAlias">;
 export type PresetName = Brand<string, "PresetName">;
+export type HerdrAgentName = Brand<string, "HerdrAgentName">;
 export type MessageId = Brand<string, "MessageId">;
 export type EventId = Brand<string, "EventId">;
 
@@ -21,6 +22,7 @@ export const systemClock: Clock = { now: () => new Date() };
 export const ulidGenerator: IdGenerator = { next: () => ulid() };
 
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const HERDR_AGENT = /^[a-z][a-z0-9_-]{0,31}$/;
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
 function segment<Name extends string>(
@@ -50,6 +52,13 @@ export const repoAlias = (v: unknown) =>
   segment<"RepoAlias">(v, "repository alias");
 export const presetName = (v: unknown) =>
   segment<"PresetName">(v, "preset name");
+export function herdrAgentName(v: unknown): HerdrAgentName {
+  if (typeof v !== "string" || !HERDR_AGENT.test(v))
+    throw new ValidationError(
+      "Herdr agent name must be 1-32 lowercase letters, digits, underscores, or hyphens and start with a letter"
+    );
+  return v as HerdrAgentName;
+}
 export function messageId(v: unknown): MessageId {
   if (typeof v !== "string" || !ULID.test(v))
     throw new ValidationError("message id must be a canonical ULID");
