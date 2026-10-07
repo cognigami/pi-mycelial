@@ -12,6 +12,9 @@ export class MissionPaths {
   agentsFile() {
     return this.inRoot("agents.json");
   }
+  sessionsFile() {
+    return this.inRoot("sessions.json");
+  }
   reposFile() {
     return this.inRoot("repos.json");
   }

@@ -2,8 +2,8 @@ import { isAbsolute, relative, sep } from "node:path";
 import type { FileSystem } from "./filesystem";
 import { isMissing } from "./filesystem";
 import {
+  type CapabilityId,
   type PresetName,
-  presetName,
   type RepoAlias,
   type RoleId,
   repoAlias,
@@ -11,10 +11,12 @@ import {
   ValidationError,
 } from "./identifiers";
 import { parseJson } from "./json-codec";
+import { normalizeParticipant } from "./participants";
 import { MissionPaths } from "./paths";
 
 export interface AgentConfig {
   role: RoleId;
+  capability: CapabilityId;
   preset?: PresetName;
 }
 
@@ -99,12 +101,7 @@ export async function readMissionDocument(
 
 function parseAgents(value: unknown): AgentConfig[] {
   const parsed = parseAgentEntries(value)
-    .map((agent) => ({
-      role: roleId(agent.role),
-      ...(agent.preset === undefined
-        ? {}
-        : { preset: presetName(agent.preset) }),
-    }))
+    .map(normalizeParticipant)
     .sort((left, right) => left.role.localeCompare(right.role));
   const roles = parsed.map((agent) => agent.role);
   if (parsed.length === 0 || new Set(roles).size !== roles.length)
@@ -112,19 +109,25 @@ function parseAgents(value: unknown): AgentConfig[] {
   return parsed;
 }
 
-function parseAgentEntries(
-  value: unknown
-): Array<{ role: string; preset?: string }> {
+interface AgentEntry {
+  role: string;
+  capability?: string;
+  preset?: string;
+}
+
+function parseAgentEntries(value: unknown): AgentEntry[] {
   if (Array.isArray(value))
     return value.map((entry) => {
       if (typeof entry === "string") return { role: entry };
       if (!entry || typeof entry !== "object")
         throw new ValidationError("Invalid agents entry");
       const record = entry as Record<string, unknown>;
-      const role = record.role ?? record.name;
-      if (typeof role !== "string")
-        throw new ValidationError("Invalid agents entry");
-      return { role, ...parsePreset(record) };
+      const role = parseEntryRole(record);
+      return {
+        role,
+        ...parseCapability(record),
+        ...parsePreset(record),
+      };
     });
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
@@ -133,11 +136,53 @@ function parseAgentEntries(
     return Object.entries(record).map(([role, metadata]) => {
       if (metadata === null) return { role };
       if (!metadata || typeof metadata !== "object")
-        throw new ValidationError(`Invalid agents metadata for ${role}`);
-      return { role, ...parsePreset(metadata as Record<string, unknown>) };
+        throw new ValidationError("Invalid agents metadata");
+      const metadataRecord = metadata as Record<string, unknown>;
+      validateKeyedIdentity(role, metadataRecord);
+      return {
+        role,
+        ...parseCapability(metadataRecord),
+        ...parsePreset(metadataRecord),
+      };
     });
   }
   throw new ValidationError("agents.json must be an array or object");
+}
+
+function parseEntryRole(record: Record<string, unknown>): string {
+  if (
+    typeof record.role === "string" &&
+    typeof record.name === "string" &&
+    record.role !== record.name
+  )
+    throw new ValidationError("Conflicting agent role and name metadata");
+  const role = record.role ?? record.name;
+  if (typeof role !== "string")
+    throw new ValidationError("Invalid agents entry");
+  return role;
+}
+
+function validateKeyedIdentity(
+  role: string,
+  record: Record<string, unknown>
+): void {
+  for (const key of ["role", "name"] as const) {
+    const value = record[key];
+    if (value === undefined) continue;
+    if (typeof value !== "string")
+      throw new ValidationError("Invalid keyed agent identity metadata");
+    if (value !== role)
+      throw new ValidationError("Conflicting keyed agent identity metadata");
+  }
+}
+
+function parseCapability(record: Record<string, unknown>): {
+  capability?: string;
+} {
+  if (record.capability === undefined) return {};
+  if (typeof record.capability !== "string")
+    throw new ValidationError("Agent capability must be a string");
+  return { capability: record.capability };
 }
 
 function parsePreset(record: Record<string, unknown>): { preset?: string } {

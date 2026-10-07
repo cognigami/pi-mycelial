@@ -9,11 +9,12 @@ import {
   type InitializedMission,
   initializeMission,
 } from "./mission-init";
+import { expandParticipants, type Participant } from "./participants";
 
 export interface InitCommand {
   action: "init";
   mission: string;
-  roles: string[];
+  participants: Participant[];
   repos?: string[];
   source?: string;
   includeCoordinator: boolean;
@@ -30,10 +31,10 @@ export function parseMycelialCommand(input: string): MycelialCommand {
   const mission = words[1];
   if (!mission || mission.startsWith("--"))
     throw new ValidationError(
-      "Usage: /mycelial init <mission-id> --roles <role,...> [--from <source.md>] [--repos <alias,...>] [--no-coordinator]"
+      "Usage: /mycelial init <mission-id> --roles <role[=count],...> [--from <source.md>] [--repos <alias,...>] [--no-coordinator]"
     );
 
-  let roles: string[] | undefined;
+  let roleDeclarations: string[] | undefined;
   let repos: string[] | undefined;
   let source: string | undefined;
   let includeCoordinator = true;
@@ -51,9 +52,9 @@ export function parseMycelialCommand(input: string): MycelialCommand {
     if (!value || value.startsWith("--"))
       throw new ValidationError(`Missing value for ${option}`);
     if (option === "--roles") {
-      if (roles)
+      if (roleDeclarations)
         throw new ValidationError("--roles may be specified only once");
-      roles = commaList(value, "roles");
+      roleDeclarations = commaList(value, "roles");
     } else if (option === "--repos") {
       if (repos)
         throw new ValidationError("--repos may be specified only once");
@@ -67,12 +68,17 @@ export function parseMycelialCommand(input: string): MycelialCommand {
     }
     index++;
   }
-  if (!roles)
-    throw new ValidationError("/mycelial init requires --roles <role,...>");
+  if (!roleDeclarations)
+    throw new ValidationError(
+      "/mycelial init requires --roles <role[=count],...>"
+    );
+  const participants = expandParticipants(roleDeclarations, {
+    includeCoordinator,
+  });
   return {
     action: "init",
     mission,
-    roles,
+    participants,
     ...(repos === undefined ? {} : { repos }),
     ...(source === undefined ? {} : { source }),
     includeCoordinator,
@@ -90,7 +96,7 @@ export async function runMycelialCommand(
   if (command.action === "help") {
     notify(
       ctx,
-      "Usage: /mycelial init <mission-id> --roles <role,...> [--from <source.md>] [--repos <alias,...>] [--no-coordinator]",
+      "Usage: /mycelial init <mission-id> --roles <role[=count],...> [--from <source.md>] [--repos <alias,...>] [--no-coordinator]",
       "info"
     );
     return;
@@ -101,7 +107,7 @@ export async function runMycelialCommand(
     const inferredRepo = defaultRepoAlias(ctx.cwd);
     const result = await initializeMission(fs, {
       mission: command.mission,
-      roles: command.roles,
+      roles: command.participants.map((participant) => participant.role),
       repos:
         command.repos ?? (inferredRepo === undefined ? [] : [inferredRepo]),
       source: command.source,

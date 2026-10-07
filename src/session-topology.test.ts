@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -8,9 +15,17 @@ import {
   type SessionHeader,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
+import { nodeFileSystem } from "./filesystem";
 import { expandParticipants } from "./participants";
+import { MissionPaths } from "./paths";
 import {
+  materializeSessionTopology,
+  parseSessionManifest,
+  prepareSessionTopology,
   type SessionManifestV1,
+  SessionMaterializationError,
+  serializeSessionManifest,
+  validateMaterializedSessionTopology,
   validateSessionTopology,
 } from "./session-topology";
 
@@ -170,6 +185,55 @@ function topology(withCoordinator = true): {
   };
 }
 
+describe("sessions.json v1 codec", () => {
+  test("round-trips a validated manifest deterministically", () => {
+    const value = topology();
+    const encoded = serializeSessionManifest(
+      value.manifest,
+      value.participants
+    );
+    expect(parseSessionManifest(encoded, value.participants)).toEqual(
+      JSON.parse(encoded)
+    );
+    expect(Object.keys(JSON.parse(encoded).sessions)).toEqual([
+      "builder-1",
+      "builder-2",
+      "coordinator",
+      "reviewer",
+    ]);
+  });
+
+  test.each([
+    [
+      "unknown top-level field",
+      '{"formatVersion":1,"sessions":{},"extra":true}',
+    ],
+    [
+      "unknown session field",
+      '{"formatVersion":1,"sessions":{"coordinator":{"sessionId":"id","sessionFile":"/session.jsonl","name":"mission: coordinator","parent":null,"extra":true}}}',
+    ],
+    ["unknown version", '{"formatVersion":2,"sessions":{}}'],
+    [
+      "duplicate participant",
+      '{"formatVersion":1,"sessions":{"coordinator":{"sessionId":"one","sessionFile":"/one","name":"one","parent":null},"coordinator":{"sessionId":"two","sessionFile":"/two","name":"two","parent":null}}}',
+    ],
+  ])("rejects %s", (_label, encoded) => {
+    const participants = expandParticipants(["coordinator"]);
+    expect(() => parseSessionManifest(encoded, participants)).toThrow();
+  });
+
+  test("uses bounded diagnostics for malformed input", () => {
+    const marker = "private-content-that-must-not-be-echoed";
+    try {
+      parseSessionManifest(`{${marker}`, expandParticipants(["builder"]));
+      throw new Error("expected parse failure");
+    } catch (error) {
+      expect(String(error)).not.toContain(marker);
+      expect(String(error).length).toBeLessThan(300);
+    }
+  });
+});
+
 describe("session topology invariants", () => {
   test("accepts one top-level coordinator and coordinator-parented workers", () => {
     const value = topology();
@@ -227,4 +291,151 @@ describe("session topology invariants", () => {
       validateSessionTopology(value.manifest, value.participants)
     ).toThrow();
   });
+});
+
+describe("dormant session topology materialization", () => {
+  test("materializes custom-directory coordinator and child sessions and reports exact paths", async () => {
+    const root = await makeRoot("mycelial materialize '");
+    const cwd = join(root, "repo with spaces and 'quotes'");
+    const sessionDir = join(root, "sessions with spaces and 'quotes'");
+    const participants = expandParticipants(["builder=2", "reviewer"]);
+    const prepared = prepareSessionTopology({
+      cwd,
+      sessionDir,
+      mission: "release-42",
+      participants,
+    });
+
+    const result = await materializeSessionTopology(nodeFileSystem, prepared);
+    const expectedPaths = [
+      prepared.manifest.sessions.coordinator.sessionFile,
+      prepared.manifest.sessions["builder-1"].sessionFile,
+      prepared.manifest.sessions["builder-2"].sessionFile,
+      prepared.manifest.sessions.reviewer.sessionFile,
+    ];
+    expect(result.createdPaths).toEqual(expectedPaths);
+    for (const participant of participants) {
+      const session = prepared.manifest.sessions[participant.role];
+      expect(session.name).toBe(`release-42: ${participant.role}`);
+      expect(session.parent).toBe(
+        participant.role === "coordinator" ? null : "coordinator"
+      );
+    }
+    await validateMaterializedSessionTopology(
+      nodeFileSystem,
+      prepared.manifest,
+      participants,
+      cwd
+    );
+  });
+
+  test("supports Pi's default directory and coordinator-free top-level sessions", async () => {
+    const root = await makeRoot("mycelial-default-sessions-");
+    const cwd = join(root, "repository");
+    const participants = expandParticipants(["builder", "reviewer"], {
+      includeCoordinator: false,
+    });
+    const prepared = prepareSessionTopology({
+      cwd,
+      mission: "peer-review",
+      participants,
+    });
+    roots.push(prepared.sessionDir);
+
+    const result = await materializeSessionTopology(nodeFileSystem, prepared);
+    expect(result.createdPaths).toHaveLength(2);
+    expect(
+      Object.values(prepared.manifest.sessions).map((session) => session.parent)
+    ).toEqual([null, null]);
+    await validateMaterializedSessionTopology(
+      nodeFileSystem,
+      prepared.manifest,
+      participants,
+      cwd
+    );
+  });
+
+  test("validation and repeated materialization do not append duplicate names", async () => {
+    const root = await makeRoot("mycelial-reopen-");
+    const participants = expandParticipants(["builder"]);
+    const prepared = prepareSessionTopology({
+      cwd: join(root, "repo"),
+      sessionDir: join(root, "sessions"),
+      mission: "stable",
+      participants,
+    });
+    await materializeSessionTopology(nodeFileSystem, prepared);
+    const coordinatorPath = prepared.manifest.sessions.coordinator.sessionFile;
+    const before = await readFile(coordinatorPath);
+
+    await validateMaterializedSessionTopology(
+      nodeFileSystem,
+      prepared.manifest,
+      participants,
+      prepared.cwd
+    );
+    const repeated = await materializeSessionTopology(nodeFileSystem, prepared);
+    expect(repeated.createdPaths).toEqual([]);
+    expect(await readFile(coordinatorPath)).toEqual(before);
+    const reopened = SessionManager.open(coordinatorPath, prepared.sessionDir);
+    expect(
+      reopened.getEntries().filter((entry) => entry.type === "session_info")
+    ).toHaveLength(1);
+  });
+
+  test("reports created predecessors when a later destination conflicts", async () => {
+    const root = await makeRoot("mycelial-partial-");
+    const participants = expandParticipants(["builder=2"]);
+    const prepared = prepareSessionTopology({
+      cwd: join(root, "repo"),
+      sessionDir: join(root, "sessions"),
+      mission: "partial",
+      participants,
+    });
+    const conflictPath = prepared.manifest.sessions["builder-1"].sessionFile;
+    const winner = Buffer.from('{"winner":true}\n');
+    await writeFile(conflictPath, winner, { flag: "wx" });
+
+    try {
+      await materializeSessionTopology(nodeFileSystem, prepared);
+      throw new Error("expected materialization failure");
+    } catch (error) {
+      expect(error).toBeInstanceOf(SessionMaterializationError);
+      expect((error as SessionMaterializationError).createdPaths).toEqual([
+        prepared.manifest.sessions.coordinator.sessionFile,
+      ]);
+    }
+    expect(await readFile(conflictPath)).toEqual(winner);
+  });
+
+  test("rejects unsafe paths and symlink destinations without replacing them", async () => {
+    const value = topology();
+    value.manifest.sessions.reviewer.sessionFile = "/sessions/../escape.jsonl";
+    expect(() =>
+      validateSessionTopology(value.manifest, value.participants)
+    ).toThrow("absolute normalized path");
+
+    const root = await makeRoot("mycelial-symlink-");
+    const participants = expandParticipants(["builder"]);
+    const prepared = prepareSessionTopology({
+      cwd: join(root, "repo"),
+      sessionDir: join(root, "sessions"),
+      mission: "safe",
+      participants,
+    });
+    const target = join(root, "winner");
+    await writeFile(target, "winner");
+    const coordinatorPath = prepared.manifest.sessions.coordinator.sessionFile;
+    await mkdir(join(root, "sessions"), { recursive: true });
+    await symlink(target, coordinatorPath);
+    await expect(
+      materializeSessionTopology(nodeFileSystem, prepared)
+    ).rejects.toBeInstanceOf(SessionMaterializationError);
+    expect(await readFile(target, "utf8")).toBe("winner");
+  });
+});
+
+test("MissionPaths exposes the optional sessions control file", () => {
+  const paths = new MissionPaths("/missions/release-42");
+  expect(paths.sessionsFile()).toBe("/missions/release-42/sessions.json");
 });
