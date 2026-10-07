@@ -413,15 +413,25 @@ MISSION_ID=${mission}
 MISSION_DIR=${missionDirectory}
 REPO_ROOT=${repositoryRoot}
 AGENTS_FILE="$MISSION_DIR/agents.json"
+SESSIONS_FILE="$MISSION_DIR/sessions.json"
 AGENT_KIND="\${HERDR_AGENT_KIND:-pi}"
 ROLES=()
 PRESETS=()
+SESSION_ROLES=()
+SESSION_IDS=()
+SESSION_FILES=()
+SESSION_NAMES=()
+SESSION_PARENTS=()
+SELECTED_ROLES=()
 STARTED_ROLES=()
+REUSED_ROLES=()
+CREATED_ROLES=()
 TABS=()
 PANES=()
 
-[[ -f "$MISSION_DIR/mission.md" ]] || fail "missing mission.md: $MISSION_DIR"
-[[ -f "$AGENTS_FILE" ]] || fail "missing agents.json: $AGENTS_FILE"
+[[ -f "$MISSION_DIR/mission.md" && ! -L "$MISSION_DIR/mission.md" ]] || fail "missing regular mission.md: $MISSION_DIR"
+[[ -f "$AGENTS_FILE" && ! -L "$AGENTS_FILE" ]] || fail "missing regular agents.json: $AGENTS_FILE"
+[[ -f "$SESSIONS_FILE" && ! -L "$SESSIONS_FILE" ]] || fail "missing regular sessions.json: $SESSIONS_FILE"
 [[ -d "$REPO_ROOT" ]] || fail "repository root is unavailable: $REPO_ROOT"
 
 AGENT_ROWS="$(
@@ -453,50 +463,104 @@ while IFS=$'\\t' read -r role preset; do
   ROLES+=("$role")
   PRESETS+=("$preset")
 done <<<"$AGENT_ROWS"
-
 ((\${#ROLES[@]} > 0)) || fail "agents.json defines no roles"
-for ((left = 0; left < \${#ROLES[@]}; left++)); do
-  for ((right = left + 1; right < \${#ROLES[@]}; right++)); do
-    [[ "\${ROLES[$left]}" != "\${ROLES[$right]}" ]] || fail "duplicate role in agents.json: \${ROLES[$left]}"
-  done
-done
+
+SESSION_ROWS="$(
+  jq -er '
+    if type != "object" or .formatVersion != 1 or (.sessions | type) != "object"
+    then error("invalid sessions manifest")
+    else .sessions | to_entries[] |
+      if (.value | type) != "object" then error("invalid session entry") else
+      [.key, .value.sessionId, .value.sessionFile, .value.name, (.value.parent // "")] | @tsv end
+    end
+  ' "$SESSIONS_FILE"
+)" || fail "could not parse sessions.json"
+while IFS=$'\\t' read -r role session_id session_file session_name parent; do
+  [[ "$role" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || fail "invalid participant in sessions.json: $role"
+  [[ "$session_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || fail "invalid session id for $role"
+  [[ "$session_file" == /* && -n "$session_name" ]] || fail "invalid session metadata for $role"
+  [[ -z "$parent" || "$parent" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || fail "invalid session parent for $role"
+  SESSION_ROLES+=("$role")
+  SESSION_IDS+=("$session_id")
+  SESSION_FILES+=("$session_file")
+  SESSION_NAMES+=("$session_name")
+  SESSION_PARENTS+=("$parent")
+done <<<"$SESSION_ROWS"
 
 role_index() {
   local target="$1" index
   for ((index = 0; index < \${#ROLES[@]}; index++)); do
-    if [[ "\${ROLES[$index]}" == "$target" ]]; then
-      printf '%s' "$index"
-      return 0
-    fi
+    [[ "\${ROLES[$index]}" == "$target" ]] && { printf '%s' "$index"; return 0; }
   done
   return 1
 }
+session_index() {
+  local target="$1" index
+  for ((index = 0; index < \${#SESSION_ROLES[@]}; index++)); do
+    [[ "\${SESSION_ROLES[$index]}" == "$target" ]] && { printf '%s' "$index"; return 0; }
+  done
+  return 1
+}
+
+((\${#SESSION_ROLES[@]} == \${#ROLES[@]})) || fail "agents.json and sessions.json participant sets differ"
+for ((left = 0; left < \${#ROLES[@]}; left++)); do
+  for ((right = left + 1; right < \${#ROLES[@]}; right++)); do
+    [[ "\${ROLES[$left]}" != "\${ROLES[$right]}" ]] || fail "duplicate role in agents.json: \${ROLES[$left]}"
+  done
+  session_index "\${ROLES[$left]}" >/dev/null || fail "participant missing from sessions.json: \${ROLES[$left]}"
+done
+for ((left = 0; left < \${#SESSION_ROLES[@]}; left++)); do
+  for ((right = left + 1; right < \${#SESSION_ROLES[@]}; right++)); do
+    [[ "\${SESSION_ROLES[$left]}" != "\${SESSION_ROLES[$right]}" ]] || fail "duplicate participant in sessions.json: \${SESSION_ROLES[$left]}"
+    [[ "\${SESSION_IDS[$left]}" != "\${SESSION_IDS[$right]}" ]] || fail "duplicate session id in sessions.json"
+    [[ "\${SESSION_FILES[$left]}" != "\${SESSION_FILES[$right]}" ]] || fail "duplicate session file in sessions.json"
+  done
+  role_index "\${SESSION_ROLES[$left]}" >/dev/null || fail "unknown sessions.json participant: \${SESSION_ROLES[$left]}"
+  expected_parent=""
+  if role_index coordinator >/dev/null && [[ "\${SESSION_ROLES[$left]}" != "coordinator" ]]; then
+    expected_parent=coordinator
+  fi
+  [[ "\${SESSION_PARENTS[$left]}" == "$expected_parent" ]] || fail "invalid session parent for \${SESSION_ROLES[$left]}"
+  [[ "\${SESSION_NAMES[$left]}" == "$MISSION_ID: \${SESSION_ROLES[$left]}" ]] || fail "invalid session name for \${SESSION_ROLES[$left]}"
+done
 
 if (($# == 0)); then
   SELECTED_ROLES=("\${ROLES[@]}")
 else
   SELECTED_ROLES=("$@")
-  for role in "\${SELECTED_ROLES[@]}"; do
-    role_index "$role" >/dev/null || fail "role is not configured: $role"
-  done
 fi
+for role in "\${SELECTED_ROLES[@]}"; do
+  role_index "$role" >/dev/null || fail "role is not configured: $role"
+done
 for ((left = 0; left < \${#SELECTED_ROLES[@]}; left++)); do
   for ((right = left + 1; right < \${#SELECTED_ROLES[@]}; right++)); do
     [[ "\${SELECTED_ROLES[$left]}" != "\${SELECTED_ROLES[$right]}" ]] || fail "role selected more than once: \${SELECTED_ROLES[$left]}"
   done
 done
 
-for role in "\${SELECTED_ROLES[@]}"; do
-  if herdr agent get "$role" >/dev/null 2>&1; then
-    fail "a live Herdr agent is already named $role"
+validate_session() {
+  local role="$1" index session_id session_file parent expected_parent_file header
+  index="$(session_index "$role")"
+  session_id="\${SESSION_IDS[$index]}"
+  session_file="\${SESSION_FILES[$index]}"
+  parent="\${SESSION_PARENTS[$index]}"
+  [[ -f "$session_file" && ! -L "$session_file" ]] || fail "session file is missing or unsafe for $role: $session_file"
+  expected_parent_file=""
+  if [[ -n "$parent" ]]; then
+    expected_parent_file="\${SESSION_FILES[$(session_index "$parent")]}"
   fi
-done
+  IFS= read -r header < "$session_file" || fail "could not read session header for $role"
+  jq -e --arg id "$session_id" --arg cwd "$REPO_ROOT" --arg parent "$expected_parent_file" '
+    type == "object" and .type == "session" and .id == $id and .cwd == $cwd and ((.parentSession // "") == $parent)
+  ' <<<"$header" >/dev/null || fail "session header does not match sessions.json for $role"
+}
+for role in "\${SELECTED_ROLES[@]}"; do validate_session "$role"; done
 
 on_error() {
   local status=$? index
   printf '\\nlaunch failed; created tabs remain available for inspection\\n' >&2
-  for ((index = 0; index < \${#STARTED_ROLES[@]}; index++)); do
-    printf '%s: tab=%s pane=%s\\n' "\${STARTED_ROLES[$index]}" "\${TABS[$index]}" "\${PANES[$index]}" >&2
+  for ((index = 0; index < \${#CREATED_ROLES[@]}; index++)); do
+    printf '%s: tab=%s pane=%s\\n' "\${CREATED_ROLES[$index]}" "\${TABS[$index]}" "\${PANES[$index]}" >&2
   done
   exit "$status"
 }
@@ -517,44 +581,54 @@ create_agent_tab() {
 
 cd "$REPO_ROOT"
 for role in "\${SELECTED_ROLES[@]}"; do
-  index="$(role_index "$role")"
-  preset="\${PRESETS[$index]}"
+  if herdr agent get "$role" >/dev/null 2>&1; then
+    REUSED_ROLES+=("$role")
+    continue
+  fi
+  role_position="$(role_index "$role")"
+  session_position="$(session_index "$role")"
+  preset="\${PRESETS[$role_position]}"
+  session_file="\${SESSION_FILES[$session_position]}"
   create_agent_tab
-  STARTED_ROLES+=("$role")
+  CREATED_ROLES+=("$role")
   TABS+=("$CREATED_TAB")
   PANES+=("$CREATED_PANE")
   sleep 0.25
-
-  agent_args=(--mycelial-mission "$MISSION_ID" --mycelial-role "$role")
-  if [[ -n "$preset" ]]; then
-    agent_args+=(--presets:preset "$preset")
-  fi
+  agent_args=(--session "$session_file" --mycelial-mission "$MISSION_ID" --mycelial-role "$role")
+  if [[ -n "$preset" ]]; then agent_args+=(--presets:preset "$preset"); fi
   printf 'Starting %s in tab=%s pane=%s...\\n' "$role" "$CREATED_TAB" "$CREATED_PANE"
   herdr agent start "$role" --kind "$AGENT_KIND" --pane "$CREATED_PANE" -- "\${agent_args[@]}"
+  STARTED_ROLES+=("$role")
 done
 
-coordinator_started=false
-for role in "\${STARTED_ROLES[@]}"; do
-  if [[ "$role" == "coordinator" ]]; then
-    coordinator_started=true
-    herdr agent prompt "$role" \
-      "You are the coordinator for mission $MISSION_ID. Load the mycelial-coordination skill, call agent_mission_read, follow the repository AGENTS.md already loaded by Pi, read every canonical artifact named by the mission, refresh agent_roster, and read agent_mail_read. Decompose the mission into independently claimable requests and send initial assignments to the live worker roles. Durable send automatically notifies delivered recipients; inspect its notification results and use agent_wake only to retry a reported failure. Do not implement worker tasks." \
-      --wait --timeout 120000
-    break
+coordinator_selected=false
+for role in "\${SELECTED_ROLES[@]}"; do
+  [[ "$role" == "coordinator" ]] && coordinator_selected=true
+done
+if ((\${#STARTED_ROLES[@]} > 0)); then
+  for role in "\${STARTED_ROLES[@]}"; do
+    if [[ "$role" == "coordinator" ]]; then
+      herdr agent prompt "$role" \
+        "Reconcile mission $MISSION_ID idempotently. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, read canonical artifacts, refresh agent_roster, read durable mail, requests, receipts, and claims, and create assignments only where durable state requires them. Never blindly repeat mission decomposition. Durable send automatically notifies recipients; use agent_wake only to retry a reported failure. Do not implement worker tasks." \
+        --wait --timeout 120000
+      break
+    fi
+  done
+  if [[ "$coordinator_selected" == "false" ]]; then
+    for role in "\${STARTED_ROLES[@]}"; do
+      herdr agent prompt "$role" \
+        "Resume as participant $role for mission $MISSION_ID. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, refresh agent_roster, read durable mail and current claims, continue only durable assigned work, and otherwise report ready and wait."
+    done
   fi
-done
-
-for role in "\${STARTED_ROLES[@]}"; do
-  [[ "$role" == "coordinator" ]] && continue
-  [[ "$coordinator_started" == "true" ]] && continue
-  herdr agent prompt "$role" \
-    "You are the $role role for mission $MISSION_ID. Load the mycelial-coordination skill, call agent_mission_read, follow the repository AGENTS.md already loaded by Pi, read every canonical artifact named by the mission, refresh agent_roster, then begin any responsibility explicitly assigned to your role by the mission; otherwise report ready and wait."
-done
+fi
 
 trap - ERR
-printf '\\nMission launched: %s\\n' "$MISSION_ID"
+printf '\\nMission launch reconciled: %s\\n' "$MISSION_ID"
+if ((\${#REUSED_ROLES[@]} > 0)); then
+  for role in "\${REUSED_ROLES[@]}"; do printf 'reused: %s\\n' "$role"; done
+fi
 for ((index = 0; index < \${#STARTED_ROLES[@]}; index++)); do
-  printf '%s: tab=%s pane=%s\\n' "\${STARTED_ROLES[$index]}" "\${TABS[$index]}" "\${PANES[$index]}"
+  printf 'started: %s tab=%s pane=%s\\n' "\${STARTED_ROLES[$index]}" "\${TABS[$index]}" "\${PANES[$index]}"
 done
 `;
 }
