@@ -37,6 +37,12 @@ For one independently claimable request, use the request message ID as both the 
 - Roster presence and `accepted` receipts do not establish ownership; only a live claim does.
 - Before `agent_task_release`, report the result and validation through the existing mail thread, then release the claim.
 
+## Shared-checkout discipline
+
+Claims establish task ownership, not file locks. Run concurrent mutating assignments only when their path scopes are disjoint. Serialize overlapping paths, dependency manifests and lockfiles, repository-wide formatting or generation, and version-control operations that mutate the shared working copy. Read-only investigation and review may run concurrently.
+
+Capability is planning metadata; address mail to the unique participant identity such as `builder-1`, never to the shared capability `builder`. Stable participant sessions are resumed by the launcher. Do not create replacement sessions, rotate them for context usage, or dynamically add participants; Pi owns context compaction.
+
 ## Sandbox discipline
 
 Do not use `/tmp` for mission work; it triggers operator approval and breaks autonomous execution. Keep scratch artifacts in repository-approved locations or use a dedicated Pi scratch tool.

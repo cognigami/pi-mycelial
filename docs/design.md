@@ -115,7 +115,8 @@ one writer ever touches them.
 ```text
 ~/mycelial/missions/<mission-id>/
   mission.md
-  agents.json                     # static role/persona config
+  agents.json                     # static participant/capability config
+  sessions.json                   # exact Pi topology for newly initialized missions
   repos.json                      # cross-codebase aliases
 
   messages/
@@ -187,8 +188,11 @@ identity, not supplied by the model (see Identity, above).
 `formatVersion`, `id`, `from`, `from_session`, `to`, `recipients`, `kind`,
 `priority`, `interrupt`, `requires_ack`, and `created`.
 
-`to` is either one named role or `all`. `all` expands at send time against the
-static roles in `agents.json`, excludes the sender in v1, and stores that sorted,
+`to` is either one named role or `all`. The protocol field `role` is the unique
+routable participant identity (for example `builder-1`); optional `capability`
+metadata such as `builder` never becomes a delivery address. `all` expands at
+send time against the static roles in `agents.json`, excludes the sender in v1,
+and stores that sorted,
 deduplicated recipient snapshot in `recipients`. The snapshot is immutable
 delivery truth; inbox markers are rebuildable projections. Named channels are
 deferred until they have a membership schema.

@@ -26,10 +26,10 @@ just install
 Start Pi in the repository where agents should work. After a discovery conversation identifies an optional approved design or implementation plan, initialize the mission with:
 
 ```text
-/mycelial init release-42 --roles implementer,reviewer --from docs/release-42-plan.md
+/mycelial init release-42 --roles builder=2,reviewer --from docs/release-42-plan.md
 ```
 
-With `--from`, the source file remains the canonical repository artifact and the generated `mission.md` references it as mission input; it is not copied into mission storage. Omit `--from` to generate a minimal editable mission. The command adds a `coordinator` role by default, creates `mission.md`, `agents.json`, `repos.json`, and an executable `launch-herdr.sh` under `~/mycelial/missions/release-42/`, and creates `./launch-mycelial-release-42.sh` as a symlink to the canonical launcher. Pass `--no-coordinator` only for deliberately peer-coordinated work.
+With `--from`, the source file remains the canonical repository artifact and the generated `mission.md` references it as mission input; it is not copied into mission storage. Omit `--from` to generate a minimal editable mission. The command adds a `coordinator` participant by default, creates `mission.md`, `agents.json`, `sessions.json`, `repos.json`, and an executable `launch-herdr.sh` under `~/mycelial/missions/release-42/`, and creates `./launch-mycelial-release-42.sh` as a symlink to the canonical launcher. `builder=2` produces participants `builder-1` and `builder-2`, both carrying capability `builder`; participant identity, not capability, is the mailbox address. Pass `--no-coordinator` only for deliberately peer-coordinated work.
 
 Initialization also creates a minimal repository `AGENTS.md` when that exact file is absent. It never modifies an existing `AGENTS.md`. The command refuses to overwrite an existing mission or project shortcut and reports every created or reused path.
 
@@ -55,11 +55,17 @@ From a Herdr-managed control shell in the repository, run:
 ./launch-mycelial-release-42.sh
 ```
 
-The launcher leaves the control tab intact, opens one tab per role, starts role-named Pi agents with trusted bindings, and forwards optional presets. When the default coordinator is present, it receives the first startup prompt and creates durable initial assignments; the launcher then notifies workers to read and claim their mail without waiting for their implementation turns to finish. Pass role names to launch only a subset:
+The launcher leaves the control tab intact, opens one tab per absent participant, starts participant-named Pi agents in their exact pre-created sessions with trusted bindings, and forwards optional presets. The coordinator session is top-level and worker sessions are its children; with `--no-coordinator`, every session is top-level. Rerunning the launcher reports live participants as reused and does not prompt them. Missing or mismatched expected session files fail closed rather than creating replacements. Pass participant identities to launch only a subset:
 
 ```sh
-./launch-mycelial-release-42.sh coordinator reviewer
+./launch-mycelial-release-42.sh coordinator builder-1
 ```
+
+## Work safely in the shared checkout
+
+Claims establish work ownership, not filesystem isolation. Give concurrent mutating assignments disjoint path scopes. Serialize overlapping files, dependency manifests and lockfiles, repository-wide formatting or generation, and working-copy version-control operations. Read-only investigation and review may run concurrently.
+
+Pi remains responsible for context compaction. Mycelial does not monitor context saturation, rotate sessions, or dynamically scale participants.
 
 ## Launch manually without Herdr
 

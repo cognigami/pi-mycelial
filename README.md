@@ -18,7 +18,7 @@ The managed artifact is `dist/index.js`. Set `PI_CODING_AGENT_DIR` to install in
 The default mission base is `~/mycelial/missions` (override `missionRoot` in `~/.config/pi-extensions/mycelial/*.jsonc`). From a Pi session in the target repository, initialize a mission with:
 
 ```text
-/mycelial init release-42 --roles implementer,reviewer [--from docs/release-42-plan.md]
+/mycelial init release-42 --roles builder=2,reviewer [--from docs/release-42-plan.md]
 ```
 
 The command refuses overwrite and creates:
@@ -27,19 +27,20 @@ The command refuses overwrite and creates:
 <missionRoot>/<mission-id>/
   mission.md
   agents.json
+  sessions.json
   repos.json
   launch-herdr.sh
 ```
 
 It also creates `./launch-mycelial-<mission-id>.sh` in the repository as a non-overwriting symlink to the canonical launcher. If the repository has no `AGENTS.md`, initialization creates a non-overwriting guidance scaffold; an existing `AGENTS.md` is never modified.
 
-A `coordinator` role is added by default and receives the first startup prompt so it can create durable initial assignments before workers are notified. Pass `--no-coordinator` only for a deliberately peer-coordinated mission.
+A top-level `coordinator` participant is added by default; each worker receives a named child Pi session. `builder=2` expands deterministically to the routable participant identities `builder-1` and `builder-2`, both with capability `builder`. Capability is planning metadata; mail, claims, roster entries, and Herdr names always use the unique participant identity. Pass `--no-coordinator` only for a deliberately peer-coordinated mission; its participant sessions are all top-level.
 
 With `--from`, the source Markdown remains a canonical repository artifact and generated `mission.md` references it; Mycelial does not copy the source into mission storage. Without `--from`, initialization generates an editable mission scaffold. Bound agents read `mission.md` explicitly with `agent_mission_read`. It supplements and never overrides repository `AGENTS.md`.
 
 `agents.json` may be an array of role names, an object keyed by role, or `{ "agents": [...] }`. An object entry may define optional launcher metadata, for example `"reviewer": { "preset": "domain-auditor" }`. `repos.json` accepts the corresponding alias forms. Repository aliases are metadata and do not resolve to filesystem paths in v1. Generated protocol directories are created lazily. Symlinked protocol control paths are rejected.
 
-From a Herdr-managed control shell in the repository, run `./launch-mycelial-<mission-id>.sh` with no arguments to launch every configured role in its own tab, or pass role names to launch a subset. A configured preset is forwarded as `--presets:preset`; Mycelial does not select models or providers.
+From a Herdr-managed control shell in the repository, run `./launch-mycelial-<mission-id>.sh` with no arguments to launch every configured participant in its own tab, or pass participant identities to launch a subset. The launcher opens each exact pre-created Pi session and reuses a same-named live Herdr participant on reruns. A missing, symlinked, or mismatched expected session file is an error and is never silently recreated. A configured preset is forwarded as `--presets:preset`; Mycelial does not select models or providers.
 
 Bind identity explicitly:
 
@@ -48,6 +49,12 @@ pi --mycelial-mission launch-42 --mycelial-role implementer
 ```
 
 Environment equivalents are `PI_MYCELIAL_MISSION`, `PI_MYCELIAL_ROLE`, and optional `PI_MYCELIAL_SESSION`. Flags take precedence. Without both mission and role, the extension is inert and registers no mailbox tools. Role is never inferred from a persona or accepted in tool input. A compatible footer displays the trusted binding as `<role>@<mission>` without exposing the session ID.
+
+## Shared-checkout safety
+
+Claims coordinate task ownership; they do not lock files. Concurrent mutating assignments must have disjoint path scopes. Serialize overlapping files, dependency manifests and lockfiles, repository-wide formatting or generation, and version-control operations that mutate the shared working copy. Parallel read-only investigation and review are safe.
+
+Stable sessions leave context compaction to Pi. Mycelial does not monitor context, rotate sessions, or dynamically create workers. Reusable topology uses public `@earendil-works/pi-coding-agent` APIs available in version 0.82.1 and newer.
 
 ## Configuration
 

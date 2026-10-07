@@ -190,7 +190,7 @@ function normalizeInitializationParticipants(
     if (
       participants.length === 0 ||
       new Set(roles).size !== roles.length ||
-      roles.includes("all" as (typeof roles)[number])
+      roles.some((role) => role === "all")
     )
       throw new ValidationError(
         "Mission participants must be non-empty and unique"
