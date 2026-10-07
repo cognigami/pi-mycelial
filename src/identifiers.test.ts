@@ -1,10 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { messageId, missionId, utcTimestamp } from "./identifiers";
+import {
+  capabilityId,
+  messageId,
+  missionId,
+  roleId,
+  utcTimestamp,
+} from "./identifiers";
 
 describe("identifiers", () => {
   test("rejects unsafe path segments", () => {
     for (const value of ["", ".", "..", "a/b", "a\\b", "bad\nname", "name."])
       expect(() => missionId(value)).toThrow();
+  });
+  test("applies the same path-safe discipline to roles and capabilities", () => {
+    expect(roleId("builder-1")).toBe("builder-1");
+    expect(capabilityId("builder")).toBe("builder");
+    for (const value of ["", "../builder", "builder/one", "builder."])
+      expect(() => capabilityId(value)).toThrow();
   });
   test("validates ULIDs and UTC", () => {
     expect(messageId("01J8Z3K9QATG5V2N7X4R6M1B0C")).toBeTruthy();

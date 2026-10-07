@@ -1,13 +1,18 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  SessionManager,
   type SessionEntry,
   type SessionHeader,
+  SessionManager,
 } from "@earendil-works/pi-coding-agent";
+import { expandParticipants } from "./participants";
+import {
+  type SessionManifestV1,
+  validateSessionTopology,
+} from "./session-topology";
 
 const roots: string[] = [];
 
@@ -98,13 +103,17 @@ test("public Pi contracts materialize dormant named parent and child sessions", 
 
   const listed = await SessionManager.list(cwd, sessionDir);
   expect(listed).toHaveLength(2);
-  expect(listed.find((session) => session.id === coordinator.getSessionId())).toMatchObject({
+  expect(
+    listed.find((session) => session.id === coordinator.getSessionId())
+  ).toMatchObject({
     path: coordinatorFile,
     cwd,
     name: "proof: coordinator",
     messageCount: 0,
   });
-  expect(listed.find((session) => session.id === worker.getSessionId())).toMatchObject({
+  expect(
+    listed.find((session) => session.id === worker.getSessionId())
+  ).toMatchObject({
     path: workerFile,
     cwd,
     name: "proof: builder-1",
@@ -126,8 +135,96 @@ test("exclusive dormant-session publication never overwrites a race winner", asy
     timestamp: new Date().toISOString(),
     cwd: root,
   };
-  await expect(publishPublicSession(header, [], destination)).rejects.toMatchObject({
+  await expect(
+    publishPublicSession(header, [], destination)
+  ).rejects.toMatchObject({
     code: "EEXIST",
   });
   expect(await readFile(destination, "utf8")).toBe(winner);
+});
+
+function topology(withCoordinator = true): {
+  participants: ReturnType<typeof expandParticipants>;
+  manifest: SessionManifestV1;
+} {
+  const participants = expandParticipants(["builder=2", "reviewer"], {
+    includeCoordinator: withCoordinator,
+  });
+  const sessions = Object.fromEntries(
+    participants.map((participant) => [
+      participant.role,
+      {
+        sessionId: randomUUID(),
+        sessionFile: `/sessions/${participant.role}.jsonl`,
+        name: `mission: ${participant.role}`,
+        parent:
+          withCoordinator && participant.role !== "coordinator"
+            ? "coordinator"
+            : null,
+      },
+    ])
+  );
+  return {
+    participants,
+    manifest: { formatVersion: 1, sessions } as SessionManifestV1,
+  };
+}
+
+describe("session topology invariants", () => {
+  test("accepts one top-level coordinator and coordinator-parented workers", () => {
+    const value = topology();
+    expect(() =>
+      validateSessionTopology(value.manifest, value.participants)
+    ).not.toThrow();
+  });
+
+  test("accepts only top-level sessions without a coordinator", () => {
+    const value = topology(false);
+    expect(() =>
+      validateSessionTopology(value.manifest, value.participants)
+    ).not.toThrow();
+  });
+
+  test.each([
+    [
+      "missing participant",
+      (manifest: SessionManifestV1) => delete manifest.sessions.reviewer,
+    ],
+    [
+      "extra participant",
+      (manifest: SessionManifestV1) => {
+        manifest.sessions.extra = { ...manifest.sessions.reviewer };
+      },
+    ],
+    [
+      "relative file",
+      (manifest: SessionManifestV1) => {
+        manifest.sessions.reviewer.sessionFile = "relative.jsonl";
+      },
+    ],
+    [
+      "empty name",
+      (manifest: SessionManifestV1) => {
+        manifest.sessions.reviewer.name = "";
+      },
+    ],
+    [
+      "worker without coordinator parent",
+      (manifest: SessionManifestV1) => {
+        manifest.sessions.reviewer.parent = null;
+      },
+    ],
+    [
+      "coordinator with parent",
+      (manifest: SessionManifestV1) => {
+        manifest.sessions.coordinator.parent = "reviewer";
+      },
+    ],
+  ])("rejects %s", (_label, mutate) => {
+    const value = topology();
+    mutate(value.manifest);
+    expect(() =>
+      validateSessionTopology(value.manifest, value.participants)
+    ).toThrow();
+  });
 });

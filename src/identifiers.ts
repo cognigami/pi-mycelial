@@ -3,6 +3,7 @@ import { ulid } from "ulid";
 export type Brand<T, Name extends string> = T & { readonly __brand: Name };
 export type MissionId = Brand<string, "MissionId">;
 export type RoleId = Brand<string, "RoleId">;
+export type CapabilityId = Brand<string, "CapabilityId">;
 export type SessionId = Brand<string, "SessionId">;
 export type TaskId = Brand<string, "TaskId">;
 export type RepoAlias = Brand<string, "RepoAlias">;
@@ -41,6 +42,8 @@ function segment<Name extends string>(
 
 export const missionId = (v: unknown) => segment<"MissionId">(v, "mission id");
 export const roleId = (v: unknown) => segment<"RoleId">(v, "role");
+export const capabilityId = (v: unknown) =>
+  segment<"CapabilityId">(v, "capability");
 export const sessionId = (v: unknown) => segment<"SessionId">(v, "session id");
 export const taskId = (v: unknown) => segment<"TaskId">(v, "task id");
 export const repoAlias = (v: unknown) =>
