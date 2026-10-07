@@ -2,8 +2,8 @@
 
 ## Status
 
-Ready for orchestrated execution after the contract gate in Work Package 0
-passes. This plan implements
+Work Packages 0–6 are implemented and automated validation passes. Live manual
+acceptance in a Herdr-managed control shell remains pending. This plan implements
 [`session-topology-design.md`](session-topology-design.md). It deliberately does
 not include session rotation, context monitoring, dynamic worker creation, or
 worktree management.

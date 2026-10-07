@@ -20,6 +20,8 @@ async function withMission<T>(
   }
 }
 
+const plain = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
+
 const normalizedAgents = (mission: Awaited<ReturnType<typeof loadMission>>) =>
   mission.agents.map((agent) => ({
     role: String(agent.role),
@@ -97,7 +99,7 @@ describe("agents.json compatibility", () => {
     async ({ agents, expected }) => {
       await withMission(agents, async (root) => {
         const mission = await loadMission(nodeFileSystem, root);
-        expect(normalizedAgents(mission)).toEqual(expected);
+        expect(plain(normalizedAgents(mission))).toEqual(plain(expected));
       });
     }
   );
@@ -193,9 +195,11 @@ test("routes generated participants by role rather than capability", async () =>
     async (root) => {
       const mission = await loadMission(nodeFileSystem, root);
       expect(
-        resolveRecipients(mission, roleId("coordinator"), "builder-1")
+        plain(resolveRecipients(mission, roleId("coordinator"), "builder-1"))
       ).toEqual({ to: "builder-1", recipients: ["builder-1"] });
-      expect(resolveRecipients(mission, roleId("coordinator"), "all")).toEqual({
+      expect(
+        plain(resolveRecipients(mission, roleId("coordinator"), "all"))
+      ).toEqual({
         to: "all",
         recipients: ["builder-1", "builder-2"],
       });

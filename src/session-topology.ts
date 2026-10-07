@@ -526,9 +526,10 @@ function assertNoDuplicateJsonFields(text: string): void {
     const token =
       /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/u.exec(
         remainder
-      )?.[0];
-    if (!token) fail("sessions.json must contain valid JSON");
-    offset += token.length;
+      );
+    if (!token)
+      throw new ValidationError("sessions.json must contain valid JSON");
+    offset += token[0].length;
   };
 
   whitespace();

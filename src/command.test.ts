@@ -1,10 +1,14 @@
 import { expect, test } from "bun:test";
 import { parseMycelialCommand } from "./command";
 
+const plain = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
+
 test("parses existing initialization arguments and quoted source paths", () => {
   expect(
-    parseMycelialCommand(
-      'init release-42 --roles coordinator,reviewer --from "docs/release mission.md" --repos app,shared'
+    plain(
+      parseMycelialCommand(
+        'init release-42 --roles coordinator,reviewer --from "docs/release mission.md" --repos app,shared'
+      )
     )
   ).toEqual({
     action: "init",
@@ -21,8 +25,10 @@ test("parses existing initialization arguments and quoted source paths", () => {
 
 test("normalizes quoted multiplicity declarations to unique participants", () => {
   expect(
-    parseMycelialCommand(
-      "init parallel-build --roles 'builder=2, reviewer=1' --from 'docs/build plan.md'"
+    plain(
+      parseMycelialCommand(
+        "init parallel-build --roles 'builder=2, reviewer=1' --from 'docs/build plan.md'"
+      )
     )
   ).toEqual({
     action: "init",
@@ -40,8 +46,10 @@ test("normalizes quoted multiplicity declarations to unique participants", () =>
 
 test("parses coordinator opt-out with existing singleton syntax", () => {
   expect(
-    parseMycelialCommand(
-      "init peer-review --roles builder,reviewer --no-coordinator"
+    plain(
+      parseMycelialCommand(
+        "init peer-review --roles builder,reviewer --no-coordinator"
+      )
     )
   ).toEqual({
     action: "init",

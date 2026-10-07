@@ -69,19 +69,19 @@ Pi remains responsible for context compaction. Mycelial does not monitor context
 
 ## Launch manually without Herdr
 
-The generated files remain usable without Herdr. Start one Pi process per role from the appropriate repository:
+The generated files remain usable without Herdr. Read each participant's exact `sessionFile` from `sessions.json` and reopen it from the appropriate repository:
 
 ```sh
-pi --mycelial-mission release-42 --mycelial-role coordinator
-pi --mycelial-mission release-42 --mycelial-role implementer
-pi --mycelial-mission release-42 --mycelial-role reviewer
+pi --session '<coordinator-sessionFile>' --mycelial-mission release-42 --mycelial-role coordinator
+pi --session '<builder-1-sessionFile>' --mycelial-mission release-42 --mycelial-role builder-1
+pi --session '<reviewer-sessionFile>' --mycelial-mission release-42 --mycelial-role reviewer
 ```
 
-A useful initial prompt is:
+Do not replace a missing recorded session with a new conversation. A useful initial prompt is:
 
-> You are the implementer for mission `release-42`. Load the `mycelial-coordination` skill, call `agent_mission_read`, read this repository's `AGENTS.md`, refresh `agent_roster`, then read `agent_mail_read` before starting work.
+> You are `builder-1` for mission `release-42`. Load the `mycelial-coordination` skill, call `agent_mission_read`, read this repository's `AGENTS.md`, refresh `agent_roster`, then read `agent_mail_read` before starting work.
 
-The footer shows the trusted binding as `implementer@release-42` when a compatible footer extension is present. The session ID is never displayed or added to model context.
+The footer shows the trusted binding as `builder-1@release-42` when a compatible footer extension is present. The session ID is never displayed or added to model context.
 
 ## Coordinate work
 

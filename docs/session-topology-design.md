@@ -2,9 +2,11 @@
 
 ## Status
 
-Proposed for implementation. This design evolves the accepted mission launch UX
-without changing the durable mailbox protocol or making Mycelial a resident
-process supervisor. Execution is staged in
+Implemented with automated validation complete; live Herdr/session-picker
+operator acceptance remains pending because validation was not run from a
+Herdr-managed control shell. The implementation preserves the durable mailbox
+protocol and does not make Mycelial a resident process supervisor. Execution is
+tracked in
 [`session-topology-implementation-plan.md`](session-topology-implementation-plan.md).
 
 ## Context

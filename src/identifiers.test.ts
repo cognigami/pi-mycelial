@@ -13,8 +13,8 @@ describe("identifiers", () => {
       expect(() => missionId(value)).toThrow();
   });
   test("applies the same path-safe discipline to roles and capabilities", () => {
-    expect(roleId("builder-1")).toBe("builder-1");
-    expect(capabilityId("builder")).toBe("builder");
+    expect(String(roleId("builder-1"))).toBe("builder-1");
+    expect(String(capabilityId("builder"))).toBe("builder");
     for (const value of ["", "../builder", "builder/one", "builder."])
       expect(() => capabilityId(value)).toThrow();
   });

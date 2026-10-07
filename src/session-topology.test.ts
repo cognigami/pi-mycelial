@@ -16,6 +16,7 @@ import {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { nodeFileSystem } from "./filesystem";
+import { roleId } from "./identifiers";
 import { expandParticipants } from "./participants";
 import { MissionPaths } from "./paths";
 import {
@@ -281,7 +282,7 @@ describe("session topology invariants", () => {
     [
       "coordinator with parent",
       (manifest: SessionManifestV1) => {
-        manifest.sessions.coordinator.parent = "reviewer";
+        manifest.sessions.coordinator.parent = roleId("reviewer");
       },
     ],
   ])("rejects %s", (_label, mutate) => {
@@ -317,7 +318,7 @@ describe("dormant session topology materialization", () => {
     for (const participant of participants) {
       const session = prepared.manifest.sessions[participant.role];
       expect(session.name).toBe(`release-42: ${participant.role}`);
-      expect(session.parent).toBe(
+      expect(session.parent === null ? null : String(session.parent)).toBe(
         participant.role === "coordinator" ? null : "coordinator"
       );
     }

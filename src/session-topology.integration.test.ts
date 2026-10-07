@@ -21,6 +21,7 @@ import { loadMission, resolveRecipients } from "./mission";
 import { initializeMission } from "./mission-init";
 
 const execFileAsync = promisify(execFile);
+const plain = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
 test("command-to-files flow creates one dormant coordinator tree with unique multiplicity identities", async () => {
   const root = await mkdtemp(join(tmpdir(), "mycelial-integration-"));
@@ -60,7 +61,7 @@ test("command-to-files flow creates one dormant coordinator tree with unique mul
     }
     const mission = await loadMission(nodeFileSystem, result.directory);
     expect(
-      resolveRecipients(mission, roleId("coordinator"), "builder-1")
+      plain(resolveRecipients(mission, roleId("coordinator"), "builder-1"))
     ).toEqual({
       to: "builder-1",
       recipients: ["builder-1"],
@@ -180,7 +181,7 @@ test("legacy missions load and route without sessions.json", async () => {
     await writeFile(join(root, "agents.json"), '["coordinator","builder"]');
     const mission = await loadMission(nodeFileSystem, root);
     expect(
-      resolveRecipients(mission, roleId("coordinator"), "builder")
+      plain(resolveRecipients(mission, roleId("coordinator"), "builder"))
     ).toEqual({
       to: "builder",
       recipients: ["builder"],

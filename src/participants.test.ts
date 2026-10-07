@@ -6,13 +6,15 @@ import {
   parseParticipantDeclaration,
 } from "./participants";
 
+const plain = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
+
 describe("participant declarations", () => {
   test.each([
     ["builder", { capability: "builder", count: 1 }],
     ["builder=1", { capability: "builder", count: 1 }],
     ["builder=3", { capability: "builder", count: 3 }],
   ])("parses %s", (input, expected) => {
-    expect(parseParticipantDeclaration(input)).toEqual(expected);
+    expect(plain(parseParticipantDeclaration(input))).toEqual(expected);
   });
 
   test.each([
@@ -32,7 +34,7 @@ describe("participant declarations", () => {
 
 describe("participant expansion", () => {
   test("expands counts in deterministic input order", () => {
-    expect(expandParticipants(["builder=3", "reviewer"])).toEqual([
+    expect(plain(expandParticipants(["builder=3", "reviewer"]))).toEqual([
       { role: "coordinator", capability: "coordinator" },
       { role: "builder-1", capability: "builder" },
       { role: "builder-2", capability: "builder" },
@@ -43,7 +45,7 @@ describe("participant expansion", () => {
 
   test("preserves singleton identity and explicit coordinator order", () => {
     expect(
-      expandParticipants(["reviewer", "coordinator", "builder=1"])
+      plain(expandParticipants(["reviewer", "coordinator", "builder=1"]))
     ).toEqual([
       { role: "reviewer", capability: "reviewer" },
       { role: "coordinator", capability: "coordinator" },
@@ -53,7 +55,7 @@ describe("participant expansion", () => {
 
   test("does not add a coordinator when opted out", () => {
     expect(
-      expandParticipants(["builder=2"], { includeCoordinator: false })
+      plain(expandParticipants(["builder=2"], { includeCoordinator: false }))
     ).toEqual([
       { role: "builder-1", capability: "builder" },
       { role: "builder-2", capability: "builder" },
@@ -62,9 +64,11 @@ describe("participant expansion", () => {
 
   test("keeps an explicitly declared coordinator when automatic inclusion is off", () => {
     expect(
-      expandParticipants(["coordinator", "builder"], {
-        includeCoordinator: false,
-      })
+      plain(
+        expandParticipants(["coordinator", "builder"], {
+          includeCoordinator: false,
+        })
+      )
     ).toEqual([
       { role: "coordinator", capability: "coordinator" },
       { role: "builder", capability: "builder" },
@@ -82,16 +86,18 @@ describe("participant expansion", () => {
 });
 
 test("normalizes participant metadata and defaults capability to identity", () => {
-  expect(normalizeParticipant({ role: "builder-1" })).toEqual({
+  expect(plain(normalizeParticipant({ role: "builder-1" }))).toEqual({
     role: "builder-1",
     capability: "builder-1",
   });
   expect(
-    normalizeParticipant({
-      role: "builder-1",
-      capability: "builder",
-      preset: "implementation",
-    })
+    plain(
+      normalizeParticipant({
+        role: "builder-1",
+        capability: "builder",
+        preset: "implementation",
+      })
+    )
   ).toEqual({
     role: "builder-1",
     capability: "builder",
