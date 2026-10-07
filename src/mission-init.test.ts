@@ -4,6 +4,7 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   readlink,
   rm,
@@ -14,8 +15,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { DEFAULT_CONFIG } from "./config";
-import { nodeFileSystem } from "./filesystem";
-import { initializeMission, renderHerdrLauncher } from "./mission-init";
+import { type FileSystem, nodeFileSystem } from "./filesystem";
+import {
+  InitializationRollbackError,
+  initializeMission,
+  renderHerdrLauncher,
+} from "./mission-init";
 
 const execFileAsync = promisify(execFile);
 
@@ -33,6 +38,7 @@ test("initializes mission controls and an executable multi-tab launcher", async 
       repos: ["app"],
       source: "docs/mission draft.md",
       cwd,
+      sessionDirectory: join(root, "sessions"),
       config: { ...DEFAULT_CONFIG, missionRoot },
     });
 
@@ -41,13 +47,29 @@ test("initializes mission controls and an executable multi-tab launcher", async 
       "approved source artifact `docs/mission draft.md`"
     );
     expect(mission).not.toContain("# Approved");
-    expect(mission).toContain("**coordinator:** Decompose and route work");
-    expect(mission).toContain("**reviewer:** Accept scoped requests");
+    expect(mission).toContain(
+      "**coordinator** (capability: **coordinator**): Decompose and route work"
+    );
+    expect(mission).toContain(
+      "**reviewer** (capability: **reviewer**): Accept scoped requests"
+    );
     expect(mission).toContain(
       "Every deliverable and acceptance check in the approved source artifact"
     );
     expect(JSON.parse(await readFile(result.agentsFile, "utf8"))).toEqual({
-      agents: ["coordinator", "reviewer"],
+      agents: [
+        { role: "coordinator", capability: "coordinator" },
+        { role: "reviewer", capability: "reviewer" },
+      ],
+    });
+    expect(
+      JSON.parse(await readFile(result.sessionsFile, "utf8"))
+    ).toMatchObject({
+      formatVersion: 1,
+      sessions: {
+        coordinator: { name: "release-42: coordinator", parent: null },
+        reviewer: { name: "release-42: reviewer", parent: "coordinator" },
+      },
     });
     expect(JSON.parse(await readFile(result.reposFile, "utf8"))).toEqual({
       repos: ["app"],
@@ -85,6 +107,7 @@ test("initializes mission controls and an executable multi-tab launcher", async 
         mission: "release-42",
         roles: ["coordinator"],
         cwd,
+        sessionDirectory: join(root, "sessions"),
         config: { ...DEFAULT_CONFIG, missionRoot },
       })
     ).rejects.toThrow("already exists");
@@ -107,6 +130,7 @@ test("generated launcher starts every configured role with optional presets", as
       mission: "live-test",
       roles: ["coordinator", "implementer", "reviewer"],
       cwd,
+      sessionDirectory: join(root, "sessions"),
       config: { ...DEFAULT_CONFIG, missionRoot },
     });
     await writeFile(
@@ -244,11 +268,12 @@ test("preserves an existing AGENTS.md and permits coordinator opt-out", async ()
       roles: ["builder"],
       includeCoordinator: false,
       cwd,
+      sessionDirectory: join(root, "sessions"),
       config: { ...DEFAULT_CONFIG, missionRoot },
     });
 
     expect(JSON.parse(await readFile(result.agentsFile, "utf8"))).toEqual({
-      agents: ["builder"],
+      agents: [{ role: "builder", capability: "builder" }],
     });
     expect(result.repositoryGuidanceCreated).toBeFalse();
     expect(await readFile(result.missionFile, "utf8")).toContain(
@@ -257,6 +282,129 @@ test("preserves an existing AGENTS.md and permits coordinator opt-out", async ()
     expect(await readFile(join(cwd, "AGENTS.md"), "utf8")).toBe(
       "# Existing guidance\n"
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test.each([
+  "coordinator session",
+  "worker session",
+  "session manifest",
+  "launcher",
+  "project symlink",
+] as const)(
+  "rolls back exactly created artifacts after a %s failure",
+  async (boundary) => {
+    const root = await mkdtemp(join(tmpdir(), "mycelial-rollback-"));
+    const cwd = join(root, "repo");
+    const missionRoot = join(root, "missions");
+    const sessionDirectory = join(root, "sessions");
+    const missionDirectory = join(missionRoot, "rollback");
+    let sessionLinks = 0;
+    try {
+      await mkdir(cwd, { recursive: true });
+      await mkdir(sessionDirectory, { recursive: true });
+      await writeFile(join(cwd, "AGENTS.md"), "# Existing\n");
+      await writeFile(join(sessionDirectory, "pre-existing.jsonl"), "keep\n");
+      const failing: FileSystem = {
+        ...nodeFileSystem,
+        async link(from, to) {
+          if (to.endsWith(".jsonl")) {
+            sessionLinks++;
+            if (
+              (boundary === "coordinator session" && sessionLinks === 1) ||
+              (boundary === "worker session" && sessionLinks === 2)
+            )
+              throw new Error(`injected ${boundary} failure`);
+          }
+          if (
+            (boundary === "session manifest" && to.endsWith("sessions.json")) ||
+            (boundary === "launcher" && to.endsWith("launch-herdr.sh"))
+          )
+            throw new Error(`injected ${boundary} failure`);
+          await nodeFileSystem.link(from, to);
+        },
+        async symlink(target, path) {
+          if (boundary === "project symlink")
+            throw new Error("injected project symlink failure");
+          await nodeFileSystem.symlink(target, path);
+        },
+      };
+
+      await expect(
+        initializeMission(failing, {
+          mission: "rollback",
+          roles: ["builder"],
+          cwd,
+          sessionDirectory,
+          config: { ...DEFAULT_CONFIG, missionRoot },
+        })
+      ).rejects.toThrow();
+
+      await expect(lstat(missionDirectory)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      await expect(
+        lstat(join(cwd, "launch-mycelial-rollback.sh"))
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      expect(await readFile(join(cwd, "AGENTS.md"), "utf8")).toBe(
+        "# Existing\n"
+      );
+      expect(
+        await readFile(join(sessionDirectory, "pre-existing.jsonl"), "utf8")
+      ).toBe("keep\n");
+      const remaining = (await readdir(sessionDirectory)).filter((path) =>
+        path.endsWith(".jsonl")
+      );
+      expect(remaining).toEqual(["pre-existing.jsonl"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+);
+
+test("preserves the primary failure and reports cleanup residue", async () => {
+  const root = await mkdtemp(join(tmpdir(), "mycelial-residue-"));
+  const cwd = join(root, "repo");
+  const missionRoot = join(root, "missions");
+  const sessionDirectory = join(root, "sessions");
+  try {
+    await mkdir(cwd, { recursive: true });
+    const failing: FileSystem = {
+      ...nodeFileSystem,
+      async link(from, to) {
+        if (to.endsWith("launch-herdr.sh"))
+          throw new Error("primary launcher failure");
+        await nodeFileSystem.link(from, to);
+      },
+      async unlink(path) {
+        if (path.endsWith(".jsonl"))
+          throw new Error("injected cleanup failure");
+        await nodeFileSystem.unlink(path);
+      },
+    };
+    let failure: unknown;
+    try {
+      await initializeMission(failing, {
+        mission: "residue",
+        roles: ["builder"],
+        cwd,
+        sessionDirectory,
+        config: { ...DEFAULT_CONFIG, missionRoot },
+      });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(InitializationRollbackError);
+    const rollback = failure as InitializationRollbackError;
+    expect((rollback.cause as Error).message).toContain(
+      "primary launcher failure"
+    );
+    expect(rollback.cleanupResidue.length).toBeGreaterThan(0);
+    expect(
+      rollback.cleanupResidue.every((path) => path.endsWith(".jsonl"))
+    ).toBeTrue();
   } finally {
     await rm(root, { recursive: true, force: true });
   }

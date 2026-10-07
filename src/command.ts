@@ -107,12 +107,15 @@ export async function runMycelialCommand(
     const inferredRepo = defaultRepoAlias(ctx.cwd);
     const result = await initializeMission(fs, {
       mission: command.mission,
-      roles: command.participants.map((participant) => participant.role),
+      participants: command.participants,
       repos:
         command.repos ?? (inferredRepo === undefined ? [] : [inferredRepo]),
       source: command.source,
       includeCoordinator: command.includeCoordinator,
       cwd: ctx.cwd,
+      ...(ctx.sessionManager.getSessionDir()
+        ? { sessionDirectory: ctx.sessionManager.getSessionDir() }
+        : {}),
       config,
     });
     await logger.info("mission initialized", {
@@ -136,6 +139,7 @@ export function formatInitializedMission(result: InitializedMission): string {
     `Mission created: ${result.mission}`,
     `Mission: ${result.missionFile}`,
     `Agents: ${result.agentsFile}`,
+    `Sessions: ${result.sessionsFile}`,
     `Repositories: ${result.reposFile}`,
     `Launcher: ${result.launcherFile}`,
     `Project shortcut: ${result.projectLauncherLink}`,

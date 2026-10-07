@@ -3,15 +3,29 @@ import { publishImmutable } from "./atomic-files";
 import type { MycelialConfig } from "./config";
 import type { FileSystem } from "./filesystem";
 import { isExists, isMissing } from "./filesystem";
-import { missionId, repoAlias, roleId, ValidationError } from "./identifiers";
+import { missionId, repoAlias, ValidationError } from "./identifiers";
+import {
+  expandParticipants,
+  normalizeParticipant,
+  type Participant,
+} from "./participants";
+import {
+  materializeSessionTopology,
+  prepareSessionTopology,
+  SessionMaterializationError,
+  serializeSessionManifest,
+} from "./session-topology";
 
 export interface InitializeMissionInput {
   mission: unknown;
-  roles: unknown[];
+  /** Legacy/programmatic declaration input; command callers pass participants. */
+  roles?: unknown[];
+  participants?: readonly Participant[];
   repos?: unknown[];
   source?: string;
   includeCoordinator?: boolean;
   cwd: string;
+  sessionDirectory?: string;
   config: MycelialConfig;
 }
 
@@ -20,6 +34,7 @@ export interface InitializedMission {
   directory: string;
   missionFile: string;
   agentsFile: string;
+  sessionsFile: string;
   reposFile: string;
   launcherFile: string;
   projectLauncherLink: string;
@@ -27,22 +42,26 @@ export interface InitializedMission {
   repositoryGuidanceCreated: boolean;
 }
 
+export class InitializationRollbackError extends Error {
+  readonly code = "INITIALIZATION_ROLLBACK_FAILED";
+  constructor(
+    cause: unknown,
+    readonly cleanupResidue: readonly string[]
+  ) {
+    super(
+      `Mission initialization failed and cleanup left residue: ${cleanupResidue.join(", ")}`,
+      { cause }
+    );
+    this.name = "InitializationRollbackError";
+  }
+}
+
 export async function initializeMission(
   fs: FileSystem,
   input: InitializeMissionInput
 ): Promise<InitializedMission> {
   const id = missionId(input.mission);
-  const requestedRoles = input.roles.map(roleId);
-  if (
-    requestedRoles.length === 0 ||
-    new Set(requestedRoles).size !== requestedRoles.length
-  )
-    throw new ValidationError("Mission roles must be non-empty and unique");
-  const coordinator = roleId("coordinator");
-  const roles =
-    input.includeCoordinator === false || requestedRoles.includes(coordinator)
-      ? requestedRoles
-      : [coordinator, ...requestedRoles];
+  const participants = normalizeInitializationParticipants(input);
   const repos = (input.repos ?? []).map(repoAlias);
   if (new Set(repos).size !== repos.length)
     throw new ValidationError("Mission repository aliases must be unique");
@@ -54,12 +73,17 @@ export async function initializeMission(
   const cwd = resolve(input.cwd);
   const missionFile = resolve(directory, "mission.md");
   const agentsFile = resolve(directory, "agents.json");
+  const sessionsFile = resolve(directory, "sessions.json");
   const reposFile = resolve(directory, "repos.json");
   const launcherFile = resolve(directory, "launch-herdr.sh");
   const projectLauncherLink = resolve(cwd, `launch-mycelial-${id}.sh`);
   const repositoryGuidanceFile = resolve(cwd, "AGENTS.md");
   await requireAbsent(fs, projectLauncherLink, "Project launcher link");
-  const missionBody = await missionDocument(fs, input, id, roles);
+  const guidanceExists = await validateRepositoryGuidance(
+    fs,
+    repositoryGuidanceFile
+  );
+  const missionBody = await missionDocument(fs, input, id, participants);
   const launcher = renderHerdrLauncher({
     missionId: id,
     missionDirectory: directory,
@@ -67,27 +91,36 @@ export async function initializeMission(
   });
 
   await fs.mkdir(missionRoot, { recursive: true, mode: 0o700 });
-  let created = false;
-  let linked = false;
-  let repositoryGuidanceCreated = false;
   try {
     await fs.mkdir(directory, { mode: 0o700 });
-    created = true;
   } catch (error) {
     if (isExists(error))
       throw new ValidationError(`Mission already exists: ${directory}`);
     throw error;
   }
 
+  const createdSessions: string[] = [];
+  let linked = false;
+  let repositoryGuidanceCreated = false;
   try {
+    const prepared = prepareSessionTopology({
+      cwd,
+      ...(input.sessionDirectory === undefined
+        ? {}
+        : { sessionDir: input.sessionDirectory }),
+      mission: id,
+      participants,
+    });
     try {
-      const guidanceStat = await fs.lstat(repositoryGuidanceFile);
-      if (!guidanceStat.isFile() || guidanceStat.isSymbolicLink())
-        throw new ValidationError(
-          `Repository AGENTS.md is not a regular file: ${repositoryGuidanceFile}`
-        );
+      const materialized = await materializeSessionTopology(fs, prepared);
+      createdSessions.push(...materialized.createdPaths);
     } catch (error) {
-      if (!isMissing(error)) throw error;
+      if (error instanceof SessionMaterializationError)
+        createdSessions.push(...error.createdPaths);
+      throw error;
+    }
+
+    if (!guidanceExists) {
       const result = await publishImmutable(
         fs,
         repositoryGuidanceFile,
@@ -99,12 +132,17 @@ export async function initializeMission(
     await publishImmutable(
       fs,
       agentsFile,
-      Buffer.from(`${JSON.stringify({ agents: roles }, null, 2)}\n`)
+      Buffer.from(`${JSON.stringify({ agents: participants }, null, 2)}\n`)
     );
     await publishImmutable(
       fs,
       reposFile,
       Buffer.from(`${JSON.stringify({ repos }, null, 2)}\n`)
+    );
+    await publishImmutable(
+      fs,
+      sessionsFile,
+      Buffer.from(serializeSessionManifest(prepared.manifest, participants))
     );
     await publishImmutable(fs, launcherFile, Buffer.from(launcher));
     await fs.chmod(launcherFile, 0o700);
@@ -112,15 +150,16 @@ export async function initializeMission(
     linked = true;
     await fs.syncDirectory(cwd);
   } catch (error) {
-    if (linked)
-      try {
-        await fs.unlink(projectLauncherLink);
-      } catch {}
-    if (repositoryGuidanceCreated)
-      try {
-        await fs.unlink(repositoryGuidanceFile);
-      } catch {}
-    if (created) await fs.rm(directory, { recursive: true, force: true });
+    const residue = await rollbackInitialization(fs, {
+      linked,
+      projectLauncherLink,
+      repositoryGuidanceCreated,
+      repositoryGuidanceFile,
+      directory,
+      createdSessions,
+    });
+    if (residue.length > 0)
+      throw new InitializationRollbackError(error, residue);
     throw error;
   }
 
@@ -129,12 +168,90 @@ export async function initializeMission(
     directory,
     missionFile,
     agentsFile,
+    sessionsFile,
     reposFile,
     launcherFile,
     projectLauncherLink,
     repositoryGuidanceFile,
     repositoryGuidanceCreated,
   };
+}
+
+function normalizeInitializationParticipants(
+  input: InitializeMissionInput
+): Participant[] {
+  if (input.participants !== undefined && input.roles !== undefined)
+    throw new ValidationError("Provide participants or roles, not both");
+  if (input.participants !== undefined) {
+    const participants = input.participants.map((participant) =>
+      normalizeParticipant(participant)
+    );
+    const roles = participants.map((participant) => participant.role);
+    if (
+      participants.length === 0 ||
+      new Set(roles).size !== roles.length ||
+      roles.includes("all" as (typeof roles)[number])
+    )
+      throw new ValidationError(
+        "Mission participants must be non-empty and unique"
+      );
+    return participants;
+  }
+  return expandParticipants(input.roles ?? [], {
+    includeCoordinator: input.includeCoordinator,
+  });
+}
+
+async function validateRepositoryGuidance(
+  fs: FileSystem,
+  path: string
+): Promise<boolean> {
+  try {
+    const stat = await fs.lstat(path);
+    if (!stat.isFile() || stat.isSymbolicLink())
+      throw new ValidationError(
+        `Repository AGENTS.md is not a regular file: ${path}`
+      );
+    return true;
+  } catch (error) {
+    if (isMissing(error)) return false;
+    throw error;
+  }
+}
+
+async function rollbackInitialization(
+  fs: FileSystem,
+  state: {
+    linked: boolean;
+    projectLauncherLink: string;
+    repositoryGuidanceCreated: boolean;
+    repositoryGuidanceFile: string;
+    directory: string;
+    createdSessions: readonly string[];
+  }
+): Promise<string[]> {
+  const residue: string[] = [];
+  const cleanup = async (path: string, operation: () => Promise<void>) => {
+    try {
+      await operation();
+    } catch {
+      residue.push(path);
+    }
+  };
+  if (state.linked)
+    await cleanup(state.projectLauncherLink, () =>
+      fs.unlink(state.projectLauncherLink)
+    );
+  if (state.repositoryGuidanceCreated)
+    await cleanup(state.repositoryGuidanceFile, () =>
+      fs.unlink(state.repositoryGuidanceFile)
+    );
+  await cleanup(state.directory, () =>
+    fs.rm(state.directory, { recursive: true, force: true })
+  );
+  for (const path of [...state.createdSessions].reverse())
+    await cleanup(path, () => fs.unlink(path));
+  return residue;
 }
 
 async function requireAbsent(
@@ -155,9 +272,9 @@ async function missionDocument(
   fs: FileSystem,
   input: InitializeMissionInput,
   id: string,
-  roles: readonly string[]
+  participants: readonly Participant[]
 ): Promise<string> {
-  if (input.source === undefined) return missionTemplate(id, roles);
+  if (input.source === undefined) return missionTemplate(id, participants);
   const source = resolve(input.cwd, input.source);
   const stat = await fs.lstat(source);
   if (!stat.isFile() || stat.isSymbolicLink())
@@ -169,12 +286,12 @@ async function missionDocument(
     throw new ValidationError(
       `Source artifact exceeds ${input.config.readMaxBytes} bytes`
     );
-  return missionTemplate(id, roles, sourceReference(input.cwd, source));
+  return missionTemplate(id, participants, sourceReference(input.cwd, source));
 }
 
 function missionTemplate(
   id: string,
-  roles: readonly string[],
+  participants: readonly Participant[],
   source?: string
 ): string {
   const goal = source
@@ -186,7 +303,9 @@ function missionTemplate(
       ? []
       : [`- Approved source artifact: \`${markdownCode(source)}\``]),
   ];
-  const hasCoordinator = roles.includes("coordinator");
+  const hasCoordinator = participants.some(
+    (participant) => participant.role === "coordinator"
+  );
   const coordination = hasCoordinator
     ? [
         "- The coordinator decomposes the mission and its canonical artifacts into independently claimable requests, sends those requests through Mycelial, tracks blockers, and accepts final results.",
@@ -213,7 +332,7 @@ ${artifacts.join("\n")}
 
 ## Roles
 
-${roles.map(roleResponsibility).join("\n")}
+${participants.map(roleResponsibility).join("\n")}
 
 ## Coordination
 
@@ -228,10 +347,10 @@ ${exitCriterion}
 `;
 }
 
-function roleResponsibility(role: string): string {
-  return role === "coordinator"
-    ? "- **coordinator:** Decompose and route work, track blockers, review reported validation, and accept the final mission result."
-    : `- **${role}:** Accept scoped requests for this role, claim work before starting, and report results with validation.`;
+function roleResponsibility(participant: Participant): string {
+  return participant.role === "coordinator"
+    ? "- **coordinator** (capability: **coordinator**): Decompose and route work, track blockers, review reported validation, and accept the final mission result."
+    : `- **${participant.role}** (capability: **${participant.capability}**): Accept scoped requests for this participant identity, claim work before starting, and report results with validation.`;
 }
 
 function sourceReference(cwd: string, source: string): string {
