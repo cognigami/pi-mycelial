@@ -2,13 +2,14 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   mkdir,
   mkdtemp,
+  readFile,
   rm,
   symlink,
   unlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { nodeFileSystem } from "./filesystem";
 import type { Clock, IdGenerator } from "./identifiers";
 import { missionId, roleId, sessionId } from "./identifiers";
@@ -69,6 +70,26 @@ const identity = (role: string, session: string) => ({
   role: roleId(role),
   session: sessionId(session),
 });
+function observeMarkerStages(store: MailboxStore, markerPath: string) {
+  let stages = 0;
+  const tempPrefix = join(dirname(markerPath), `.${basename(markerPath)}.`);
+  return {
+    store: new MailboxStore(
+      {
+        ...store.fs,
+        open: async (path, flags, mode) => {
+          if (path.startsWith(tempPrefix) && path.endsWith(".tmp")) stages++;
+          return store.fs.open(path, flags, mode);
+        },
+      },
+      store.mission,
+      store.clock,
+      store.ids,
+      store.limits
+    ),
+    stages: () => stages,
+  };
+}
 describe("mailbox workflow", () => {
   test("send, independent read, receipt, and linked reply", async () => {
     const { store } = await fixture();
@@ -103,6 +124,40 @@ describe("mailbox workflow", () => {
     expect(reply.message.in_reply_to).toBe(sent.message.id);
     expect(reply.message.thread).toBe(sent.message.id);
   });
+  test("warm reads skip publication but still validate canonical messages and markers", async () => {
+    const { store, mission } = await fixture();
+    const sent = await store.send(identity("coordinator", "c1"), {
+      to: "implementer",
+      body: "work",
+    });
+    const markerPath = mission.paths.marker(
+      roleId("implementer"),
+      sent.message.id
+    );
+    const { store: monitored, stages } = observeMarkerStages(store, markerPath);
+    expect(
+      (await monitored.read(identity("implementer", "i1"))).messages.map(
+        (message) => message.id
+      )
+    ).toEqual([sent.message.id]);
+    expect(
+      (await monitored.read(identity("implementer", "i1"))).messages
+    ).toHaveLength(0);
+    expect(stages()).toBe(0);
+
+    const messagePath = mission.paths.message(sent.message.id);
+    const canonical = await readFile(messagePath);
+    await writeFile(messagePath, "corrupt");
+    await expect(
+      monitored.read(identity("implementer", "i1"))
+    ).rejects.toThrow();
+    await writeFile(messagePath, canonical);
+    await writeFile(markerPath, "corrupt");
+    await expect(
+      monitored.read(identity("implementer", "i1"))
+    ).rejects.toThrow();
+    expect(stages()).toBe(0);
+  });
   test("repairs partial fan-out and discovers delayed lower ULID", async () => {
     const { store, mission, clock, sequence } = await fixture();
     const newer = await store.send(identity("coordinator", "c1"), {
@@ -116,11 +171,20 @@ describe("mailbox workflow", () => {
       to: "implementer",
       body: "delayed",
     });
-    await unlink(
-      mission.paths.marker(roleId("implementer"), delayed.message.id)
+    const markerPath = mission.paths.marker(
+      roleId("implementer"),
+      delayed.message.id
     );
-    const read = await store.read(identity("implementer", "i1"));
+    await unlink(markerPath);
+    const { store: monitored, stages } = observeMarkerStages(store, markerPath);
+    const read = await monitored.read(identity("implementer", "i1"));
     expect(read.messages.map((m) => m.id)).toEqual([delayed.message.id]);
+    expect(stages()).toBe(1);
+    expect((await readFile(markerPath)).length).toBeGreaterThan(0);
+    expect(
+      (await monitored.read(identity("implementer", "i1"))).messages
+    ).toHaveLength(0);
+    expect(stages()).toBe(1);
     expect(newer.message.id > delayed.message.id).toBeTrue();
   });
   test("rejects generated-directory symlinks", async () => {

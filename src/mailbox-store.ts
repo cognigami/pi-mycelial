@@ -82,11 +82,27 @@ export class MailboxStore {
       if (isMissing(error)) return [];
       throw error;
     }
+    let existingMarkers: Set<string> | undefined;
+    if (role) {
+      try {
+        await ensureProtocolDirectory(
+          this.fs,
+          this.mission.paths.root,
+          this.mission.paths.inbox(role)
+        );
+        existingMarkers = new Set(
+          await this.fs.readdir(this.mission.paths.inbox(role))
+        );
+      } catch {
+        /* fall back to publication attempts, which retain their error handling */
+      }
+    }
     for (const name of names.filter((n) => n.endsWith(".md")).sort()) {
       const id = messageId(name.slice(0, -3));
       const record = await this.loadMessage(id);
       for (const recipient of record.recipients) {
         if (role && recipient !== role) continue;
+        if (existingMarkers?.has(`${record.id}.json`)) continue;
         try {
           const result = await this.publishMarker(record, recipient);
           if (result) repaired.add(recipient);
