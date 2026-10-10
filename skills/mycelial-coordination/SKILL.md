@@ -14,7 +14,7 @@ Use the durable mailbox as coordination truth. Never invent or pass mission, rol
 3. Call `agent_mail_read` before starting new work.
 4. Check mail again at atomic task boundaries and before ending a work turn. Do not poll continuously.
 
-Treat P0 as emergency mail to handle at the next safe point. Treat P1 as blocking mail to acknowledge promptly after the current atomic operation. Follow each message's interrupt and acknowledgement metadata.
+Reserve P0 for genuine emergencies (for example imminent data loss or a safety-critical stop), never routine progress, completion, or ordinary scheduling. Treat P0 as emergency mail to handle at the next safe point. Treat P1 as blocking mail to acknowledge promptly after the current atomic operation. Follow each message's interrupt and acknowledgement metadata.
 
 ## Conversations and receipts
 
@@ -36,6 +36,20 @@ For one independently claimable request, use the request message ID as both the 
 - Renew an owned claim before its lease expires when work continues.
 - Roster presence and `accepted` receipts do not establish ownership; only a live claim does.
 - Before `agent_task_release`, report the result and validation through the existing mail thread, then release the claim.
+
+## Bounded assignments
+
+The coordinator schedules work. Each assignment needs a concrete deliverable,
+exclusive mutating path scope, validation to run, a reporting boundary, and a
+stop condition. Claim it before working; finish that bounded request, report
+results and validation through its original thread, release the claim, and stop
+until assigned more work. If scope or acceptance is unclear, ask rather than
+expanding the task or polling for work. Read mail at atomic boundaries and before
+ending the turn, not in a continuous loop.
+
+A fresh conversation does not inherit a prior session's live claim. Do not work,
+renew, or release that task until the old owner releases it or its lease expires
+and your own normal claim succeeds. An accepted receipt is not ownership.
 
 ## Shared-checkout discipline
 

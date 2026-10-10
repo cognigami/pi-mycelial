@@ -42,13 +42,16 @@ async function staged(
 export async function publishImmutable(
   fs: FileSystem,
   path: string,
-  bytes: Uint8Array
+  bytes: Uint8Array,
+  onCreated?: () => void
 ): Promise<PublishResult> {
   let temp: string | undefined;
   try {
     temp = await staged(fs, path, bytes);
     try {
       await fs.link(temp, path);
+      // Ownership begins at link publication, not after directory durability.
+      onCreated?.();
       await fs.syncDirectory(dirname(path));
       return "created";
     } catch (error) {

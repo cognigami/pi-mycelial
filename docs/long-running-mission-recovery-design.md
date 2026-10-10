@@ -2,12 +2,16 @@
 
 ## Status
 
-Discussion draft. The narrow warm-marker reconciliation optimization is
-implemented and tested; it has not been benchmarked against Benny. No rotation
-command or notification behavior is implemented by this document. Validate the
-failure modes and deletion policy before building the destructive path. This proposal revisits the deferred context-lifecycle
-item in `session-topology-design.md`; it does not change the durable protocol or
-automate session replacement.
+Binding product contract. Offline operator rotation is implemented with automated
+validation complete and implementation review approved; live Herdr/picker release
+acceptance remains pending.
+See [implementation evidence](long-running-mission-recovery-status.md) and the
+[operator preview runbook](long-running-mission-recovery-runbook.md). The narrow
+warm-marker optimization is tested and measured on disposable synthetic copies,
+not Benny. Additional notification suppression is not implemented because its
+future-read liveness gate remains unproven. This design revisits the deferred
+context-lifecycle item in `session-topology-design.md`; it does not change the
+durable protocol or automate session replacement.
 
 Implementation sequencing, dependencies, and release gates are in
 [`long-running-mission-recovery-implementation-plan.md`](long-running-mission-recovery-implementation-plan.md).

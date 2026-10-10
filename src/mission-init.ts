@@ -620,7 +620,7 @@ if ((\${#STARTED_ROLES[@]} > 0)); then
   for role in "\${STARTED_ROLES[@]}"; do
     if [[ "$role" == "coordinator" ]]; then
       herdr agent prompt "$(herdr_name_for_role "$role")" \
-        "Reconcile mission $MISSION_ID idempotently. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, read canonical artifacts, refresh agent_roster, read durable mail, requests, receipts, and claims, and create assignments only where durable state requires them. Never blindly repeat mission decomposition. Durable send automatically notifies recipients; use agent_wake only to retry a reported failure. Do not implement worker tasks." \
+        "Reconcile mission $MISSION_ID idempotently. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, read canonical artifacts, refresh agent_roster, read durable mail, requests, receipts, and claims, and create assignments only where durable state requires them. Give each assignment a deliverable, exclusive mutating path scope, validation, reporting boundary, and stop condition. Reserve P0 for genuine emergencies, never routine progress. Check mail at atomic boundaries, not in a polling loop. Never blindly repeat mission decomposition. Durable send automatically notifies recipients; use agent_wake only to retry a reported failure. Do not implement worker tasks." \
         --wait --timeout 120000
       break
     fi
@@ -628,7 +628,7 @@ if ((\${#STARTED_ROLES[@]} > 0)); then
   if [[ "$coordinator_selected" == "false" ]]; then
     for role in "\${STARTED_ROLES[@]}"; do
       herdr agent prompt "$(herdr_name_for_role "$role")" \
-        "Resume as participant $role for mission $MISSION_ID. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, refresh agent_roster, read durable mail and current claims, continue only durable assigned work, and otherwise report ready and wait."
+        "Resume as participant $role for mission $MISSION_ID. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, refresh agent_roster, read durable mail and current claims, continue only bounded durable assigned work after your own claim succeeds, report validation through its thread, release the claim, and stop at the assignment boundary. Never inherit an old session's live claim. Reserve P0 for genuine emergencies, never routine progress; check mail at atomic boundaries, not in a polling loop. Otherwise report ready and wait."
     done
   fi
 fi

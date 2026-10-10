@@ -303,12 +303,9 @@ export async function materializeSessionTopology(
           );
       }
 
-      const result = await publishImmutable(
-        fs,
-        session.sessionFile,
-        file.bytes
+      await publishImmutable(fs, session.sessionFile, file.bytes, () =>
+        createdPaths.push(session.sessionFile)
       );
-      if (result === "created") createdPaths.push(session.sessionFile);
       await validateMaterializedSession(fs, {
         session,
         cwd: prepared.cwd,

@@ -48,13 +48,13 @@ Bind identity explicitly:
 pi --mycelial-mission launch-42 --mycelial-role implementer
 ```
 
-Environment equivalents are `PI_MYCELIAL_MISSION`, `PI_MYCELIAL_ROLE`, and optional `PI_MYCELIAL_SESSION`. Flags take precedence. Without both mission and role, the extension is inert and registers no mailbox tools. Role is never inferred from a persona or accepted in tool input. A compatible footer displays the trusted binding as `<role>@<mission>` without exposing the session ID.
+Environment equivalents are `PI_MYCELIAL_MISSION`, `PI_MYCELIAL_ROLE`, and optional `PI_MYCELIAL_SESSION`. Flags take precedence. An explicit session binding must match the opened Pi session when its host ID is known; stale overrides are rejected before runtime writes. Without both mission and role, the extension is inert and registers no mailbox tools. Role is never inferred from a persona or accepted in tool input. A compatible footer displays the trusted binding as `<role>@<mission>` without exposing the session ID.
 
 ## Shared-checkout safety
 
 Claims coordinate task ownership; they do not lock files. Concurrent mutating assignments must have disjoint path scopes. Serialize overlapping files, dependency manifests and lockfiles, repository-wide formatting or generation, and version-control operations that mutate the shared working copy. Parallel read-only investigation and review are safe.
 
-Stable sessions leave context compaction to Pi. Mycelial does not monitor context, rotate sessions, or dynamically create workers. Reusable topology uses public `@earendil-works/pi-coding-agent` APIs available in version 0.82.1 and newer.
+Stable sessions leave context compaction to Pi. Mycelial does not monitor context, automatically rotate sessions, or dynamically create workers. An explicit offline operator rotation preview is available through the repository's `just rotate` recipe; see the [runbook](docs/long-running-mission-recovery-runbook.md) and [acceptance limitations](docs/long-running-mission-recovery-status.md). Live Herdr acceptance is still required before release. Reusable topology uses public `@earendil-works/pi-coding-agent` APIs available in version 0.82.1 and newer.
 
 ## Configuration
 

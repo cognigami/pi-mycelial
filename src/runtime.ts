@@ -24,7 +24,6 @@ export class MycelialRuntime {
     readonly fs: FileSystem = nodeFileSystem
   ) {}
   async start(input: RuntimeBindingInput): Promise<ToolServices | undefined> {
-    await this.stop();
     if (
       input.mission === undefined &&
       input.role === undefined &&
@@ -32,8 +31,10 @@ export class MycelialRuntime {
       process.env.PI_MYCELIAL_MISSION === undefined &&
       process.env.PI_MYCELIAL_ROLE === undefined &&
       process.env.PI_MYCELIAL_SESSION === undefined
-    )
+    ) {
+      await this.stop();
       return undefined;
+    }
     const config = await loadConfig(this.files);
     const identity = resolveIdentity(
       {
@@ -45,6 +46,9 @@ export class MycelialRuntime {
       config.missionRoot
     );
     if (!identity) return undefined;
+    // Reject mismatched host bindings before even writing the prior runtime's
+    // offline heartbeat.
+    await this.stop();
     const mission = await loadMission(this.fs, identity.root);
     if (!mission.roles.includes(identity.role))
       throw new ValidationError(

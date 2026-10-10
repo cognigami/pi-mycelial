@@ -409,6 +409,42 @@ describe("dormant session topology materialization", () => {
     expect(await readFile(conflictPath)).toEqual(winner);
   });
 
+  test("link-success/sync-failure reports ownership but identical collisions never do", async () => {
+    const root = await makeRoot("mycelial-topology-sync-");
+    const participants = expandParticipants(["builder"]);
+    const prepared = prepareSessionTopology({
+      cwd: root,
+      sessionDir: join(root, "sessions"),
+      mission: "sync",
+      participants,
+    });
+    const path = prepared.manifest.sessions.coordinator.sessionFile;
+    const fs = {
+      ...nodeFileSystem,
+      syncDirectory: async () => {
+        throw new Error("directory sync");
+      },
+    };
+    try {
+      await materializeSessionTopology(fs, prepared);
+      throw new Error("expected failure");
+    } catch (error) {
+      expect((error as SessionMaterializationError).createdPaths).toEqual([
+        path,
+      ]);
+    }
+    // The exact same bytes are a preexisting collision in the second invocation.
+    try {
+      await materializeSessionTopology(fs, prepared);
+      throw new Error("expected failure");
+    } catch (error) {
+      expect((error as SessionMaterializationError).createdPaths).toEqual([
+        prepared.manifest.sessions.builder.sessionFile,
+      ]);
+    }
+    expect(await readFile(path)).toBeDefined();
+  });
+
   test("rejects unsafe paths and symlink destinations without replacing them", async () => {
     const value = topology();
     value.manifest.sessions.reviewer.sessionFile = "/sessions/../escape.jsonl";

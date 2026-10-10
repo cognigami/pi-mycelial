@@ -1,4 +1,4 @@
-import { dirname } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { publishImmutable, replaceMutable } from "./atomic-files";
 import type { FileSystem } from "./filesystem";
 import { isMissing } from "./filesystem";
@@ -36,6 +36,7 @@ import {
   type TrustedIdentity,
 } from "./protocol";
 import { formatReceipt, parseReceipt } from "./receipt-codec";
+import { optionalNames, safePath } from "./rotation-paths";
 import { ensureProtocolDirectory } from "./safe-path";
 
 export interface MailboxLimits {
@@ -397,21 +398,131 @@ export class MailboxStore {
       )) === "created"
     );
   }
-  private async readCursor(
+  /** Read-only seam for offline inspection/transfer; missing is not corrupt. */
+  async readCursor(
     identity: TrustedIdentity
   ): Promise<CursorRecord | undefined> {
     const path = this.mission.paths.cursor(identity.role, identity.session);
     try {
-      return parseJson(
+      if (
+        !(await safePath(
+          this.fs,
+          resolve(
+            await this.fs.realpath(this.mission.paths.root),
+            relative(this.mission.paths.root, path)
+          ),
+          "file",
+          true
+        ))
+      )
+        return undefined;
+      const cursor = parseJson(
         (await this.fs.readFile(path)).toString("utf8"),
         path,
         validateCursor
       );
+      if (cursor.role !== identity.role || cursor.session !== identity.session)
+        throw new CorruptionError(
+          path,
+          "cursor identity does not match its path"
+        );
+      return cursor;
     } catch (error) {
       if (isMissing(error)) return undefined;
       throw error;
     }
   }
+  /** Publishes a fresh cursor exclusively; never overwrites an existing cursor. */
+  async initializeCursor(
+    identity: TrustedIdentity,
+    returned: readonly MessageId[]
+  ): Promise<void> {
+    const path = this.mission.paths.cursor(identity.role, identity.session);
+    await ensureProtocolDirectory(
+      this.fs,
+      this.mission.paths.root,
+      dirname(path)
+    );
+    const result = await publishImmutable(
+      this.fs,
+      path,
+      this.cursorBytes(identity, [...returned])
+    );
+    if (result !== "created")
+      throw new ValidationError(`New cursor already exists: ${path}`);
+    const readBack = await this.readCursor(identity);
+    if (JSON.stringify(readBack?.returned) !== JSON.stringify(returned))
+      throw new ValidationError(
+        "Transferred cursor does not match returned IDs"
+      );
+  }
+
+  /** Canonical mail is truth, including mail whose marker has not arrived. */
+  async inspectUnread(identity: TrustedIdentity): Promise<MessageId[]> {
+    const returned = new Set((await this.readCursor(identity))?.returned ?? []);
+    const canonical = new Map<MessageId, MessageRecord>();
+    for (const name of await optionalNames(
+      this.fs,
+      this.mission.paths.messages()
+    )) {
+      if (!name.endsWith(".md")) continue;
+      const id = messageId(name.slice(0, -3));
+      const path = this.mission.paths.message(id);
+      await safePath(this.fs, path, "file");
+      const record = await this.loadMessage(id);
+      if (record.id !== id)
+        throw new CorruptionError(
+          path,
+          "message identity does not match its path"
+        );
+      canonical.set(id, record);
+    }
+    for (const name of await optionalNames(
+      this.fs,
+      this.mission.paths.inbox(identity.role)
+    )) {
+      if (!name.endsWith(".json")) continue;
+      const id = messageId(name.slice(0, -5));
+      const path = this.mission.paths.marker(identity.role, id);
+      await safePath(this.fs, path, "file");
+      const marker = parseJson(
+        (await this.fs.readFile(path)).toString("utf8"),
+        path,
+        validateMarker
+      );
+      const record = canonical.get(id);
+      if (
+        marker.message !== id ||
+        marker.recipient !== identity.role ||
+        !record?.recipients.includes(identity.role) ||
+        marker.created !== record.created
+      )
+        throw new CorruptionError(path, "marker does not match canonical mail");
+    }
+    return [...canonical.values()]
+      .filter(
+        (record) =>
+          record.recipients.includes(identity.role) && !returned.has(record.id)
+      )
+      .map((record) => record.id)
+      .sort();
+  }
+
+  private cursorBytes(
+    identity: TrustedIdentity,
+    returned: MessageId[]
+  ): Buffer {
+    return Buffer.from(
+      formatJson({
+        formatVersion: 1,
+        role: identity.role,
+        session: identity.session,
+        returned,
+        updated: nowIso(this.clock),
+      } satisfies CursorRecord)
+    );
+  }
+
   private async writeCursor(identity: TrustedIdentity, returned: MessageId[]) {
     const path = this.mission.paths.cursor(identity.role, identity.session);
     await ensureProtocolDirectory(
@@ -419,19 +530,7 @@ export class MailboxStore {
       this.mission.paths.root,
       dirname(this.mission.paths.cursor(identity.role, identity.session))
     );
-    await replaceMutable(
-      this.fs,
-      path,
-      Buffer.from(
-        formatJson({
-          formatVersion: 1,
-          role: identity.role,
-          session: identity.session,
-          returned,
-          updated: nowIso(this.clock),
-        } satisfies CursorRecord)
-      )
-    );
+    await replaceMutable(this.fs, path, this.cursorBytes(identity, returned));
   }
 }
 

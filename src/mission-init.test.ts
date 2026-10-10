@@ -201,6 +201,15 @@ printf '{"result":{}}\\n'
     expect(calls.match(/agent prompt/g)).toHaveLength(1);
     expect(calls).toContain(`agent prompt ${coordinatorAgent}`);
     expect(calls).toContain("Reconcile mission live-test idempotently");
+    expect(calls).toContain(
+      "deliverable, exclusive mutating path scope, validation, reporting boundary, and stop condition"
+    );
+    expect(calls).toContain(
+      "Reserve P0 for genuine emergencies, never routine progress"
+    );
+    expect(calls).toContain(
+      "Check mail at atomic boundaries, not in a polling loop"
+    );
 
     await writeFile(herdrLog, "");
     const second = await execFileAsync("bash", [result.launcherFile], {
@@ -244,6 +253,9 @@ printf '{"result":{}}\\n'
     expect(calls).not.toContain(`agent start ${coordinatorAgent}`);
     expect(calls).toContain(`agent prompt ${reviewerAgent}`);
     expect(calls).toContain("Resume as participant reviewer");
+    expect(calls).toContain("after your own claim succeeds");
+    expect(calls).toContain("Never inherit an old session's live claim");
+    expect(calls).toContain("stop at the assignment boundary");
 
     await writeFile(herdrState, `${coordinatorAgent}\n${implementerAgent}\n`);
     await writeFile(herdrLog, "");

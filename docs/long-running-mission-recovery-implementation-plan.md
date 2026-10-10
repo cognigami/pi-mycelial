@@ -2,11 +2,17 @@
 
 ## Status and outcome
 
-Planning only. Implements the scope of
+WP0–WP5 implemented; WP6 automated validation is complete and implementation
+review is approved. Live operator acceptance remains pending. Decisions,
+measurements, test mapping, and limitations
+are recorded in [implementation evidence](long-running-mission-recovery-status.md)
+and the [operator preview runbook](long-running-mission-recovery-runbook.md).
+Implements the scope of
 [`long-running-mission-recovery-design.md`](long-running-mission-recovery-design.md),
-which remains the product contract. No rotation or new notification behavior is
-implemented by this plan. The warm-marker optimization is already implemented;
-its performance benefit still needs measurement.
+which remains the product contract. Rotation now has an explicit control-shell
+implementation; additional notification suppression is deliberately not shipped.
+The warm-marker optimization is measured on disposable synthetic mission copies,
+not Benny. The release gate is not fully met until live acceptance.
 
 Deliver two independent outcomes:
 

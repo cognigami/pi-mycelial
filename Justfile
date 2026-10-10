@@ -29,3 +29,12 @@ lint *paths: sync
 [script]
 test *paths: sync
   {{bun}} {{tooling}} test "$@"
+
+# Explicit operator control-shell operation; never an agent tool.
+[script]
+rotate *args:
+  {{bun}} --no-install src/rotation-cli.ts "$@"
+
+# Disposable synthetic corpus only; never advances a live mailbox cursor.
+benchmark-mailbox: sync
+  {{bun}} src/mailbox-benchmark.ts

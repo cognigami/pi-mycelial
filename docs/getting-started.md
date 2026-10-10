@@ -65,7 +65,7 @@ The launcher leaves the control tab intact, opens one tab per absent participant
 
 Claims establish work ownership, not filesystem isolation. Give concurrent mutating assignments disjoint path scopes. Serialize overlapping files, dependency manifests and lockfiles, repository-wide formatting or generation, and working-copy version-control operations. Read-only investigation and review may run concurrently.
 
-Pi remains responsible for context compaction. Mycelial does not monitor context saturation, rotate sessions, or dynamically scale participants.
+Pi remains responsible for context compaction. Mycelial does not monitor context saturation, automatically rotate sessions, or dynamically scale participants. The [offline operator rotation preview](long-running-mission-recovery-runbook.md) preserves the mission and durable state; it requires mission-wide downtime and has pending live Herdr release acceptance.
 
 ## Launch manually without Herdr
 

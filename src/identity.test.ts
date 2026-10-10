@@ -1,5 +1,38 @@
 import { expect, test } from "bun:test";
+import { sessionId } from "./identifiers";
 import { resolveIdentity } from "./identity";
+
+test("matching overrides and hostless callers remain supported; stale overrides fail", () => {
+  expect(
+    resolveIdentity(
+      {
+        flagMission: "m",
+        flagRole: "r",
+        flagSession: "s",
+        hostSession: "s",
+        env: {},
+      },
+      "/missions"
+    )?.session
+  ).toBe(sessionId("s"));
+  expect(
+    resolveIdentity(
+      { flagMission: "m", flagRole: "r", flagSession: "s", env: {} },
+      "/missions"
+    )?.session
+  ).toBe(sessionId("s"));
+  expect(() =>
+    resolveIdentity(
+      {
+        flagMission: "m",
+        flagRole: "r",
+        hostSession: "new",
+        env: { PI_MYCELIAL_SESSION: "old" },
+      },
+      "/missions"
+    )
+  ).toThrow("does not match");
+});
 
 test("identity is inert unbound and flags override environment", () => {
   expect(resolveIdentity({ env: {} }, "/missions")).toBeUndefined();

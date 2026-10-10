@@ -3,6 +3,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   symlink,
   unlink,
@@ -47,7 +48,7 @@ const ids = [
   "01J8Z3K9QATG5V2N7X4R6M1B0G",
 ];
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), "mycelial-mail-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "mycelial-mail-")));
   roots.push(root);
   await writeFile(join(root, "mission.md"), "# Test\n");
   await writeFile(
@@ -186,6 +187,66 @@ describe("mailbox workflow", () => {
     ).toHaveLength(0);
     expect(stages()).toBe(1);
     expect(newer.message.id > delayed.message.id).toBeTrue();
+  });
+  test("cursor transfer preserves only returned IDs; pending, delayed, new mail and replay survive", async () => {
+    const { store, mission } = await fixture();
+    const old = identity("implementer", "old");
+    const fresh = identity("implementer", "fresh");
+    const sent = await store.send(identity("coordinator", "c1"), {
+      to: "implementer",
+      body: "returned",
+    });
+    await store.read(old);
+    const receipt = await store.acknowledge(old, {
+      message: sent.message.id,
+      event: "accepted",
+    });
+    const pending = await store.send(identity("coordinator", "c1"), {
+      to: "implementer",
+      body: "pending",
+    });
+    await unlink(mission.paths.marker(old.role, pending.message.id));
+    expect(await store.inspectUnread(old)).toEqual([pending.message.id]);
+    const cursor = await store.readCursor(old);
+    if (!cursor) throw new Error("Missing old cursor");
+    const returned = cursor.returned;
+    const oldBytes = await readFile(
+      mission.paths.cursor(old.role, old.session)
+    );
+    await store.initializeCursor(fresh, returned);
+    expect(await readFile(mission.paths.cursor(old.role, old.session))).toEqual(
+      oldBytes
+    );
+    expect((await store.read(fresh)).messages.map((value) => value.id)).toEqual(
+      [pending.message.id]
+    );
+    expect((await store.read(fresh)).messages).toEqual([]);
+    const later = await store.send(identity("coordinator", "c1"), {
+      to: "implementer",
+      body: "later",
+    });
+    expect((await store.read(fresh)).messages.map((value) => value.id)).toEqual(
+      [later.message.id]
+    );
+    expect((await store.read(fresh, { replay: true })).messages).toHaveLength(
+      3
+    );
+    expect(await store.receipts(sent.message.id)).toEqual([receipt]);
+    const reply = await store.reply(fresh, {
+      message: sent.message.id,
+      body: "linked",
+    });
+    expect(reply.message.thread).toBe(sent.message.id);
+    await writeFile(
+      mission.paths.cursor(old.role, old.session),
+      JSON.stringify({ ...(await store.readCursor(old)), session: "wrong" })
+    );
+    await expect(store.readCursor(old)).rejects.toThrow(
+      "identity does not match"
+    );
+    expect(
+      await store.readCursor(identity("implementer", "missing"))
+    ).toBeUndefined();
   });
   test("rejects generated-directory symlinks", async () => {
     const { root, store } = await fixture();

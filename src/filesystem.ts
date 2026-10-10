@@ -2,6 +2,8 @@ import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
 
 export interface FileStat {
+  readonly dev: number;
+  readonly ino: number;
   isFile(): boolean;
   isDirectory(): boolean;
   isSymbolicLink(): boolean;
@@ -13,6 +15,8 @@ export interface FileHandle {
 }
 export interface FileSystem {
   readFile(path: string): Promise<Buffer>;
+  /** Bounded prefix read; never loads the remainder of a transcript. */
+  readPrefix(path: string, maxBytes: number): Promise<Buffer>;
   readdir(path: string, withTypes?: boolean): Promise<string[]>;
   mkdir(
     path: string,
@@ -37,6 +41,19 @@ export interface FileSystem {
 
 export const nodeFileSystem: FileSystem = {
   readFile: fs.readFile,
+  readPrefix: async (path, maxBytes) => {
+    const handle = await fs.open(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW
+    );
+    try {
+      const buffer = Buffer.alloc(maxBytes);
+      const { bytesRead } = await handle.read(buffer, 0, maxBytes, 0);
+      return buffer.subarray(0, bytesRead);
+    } finally {
+      await handle.close();
+    }
+  },
   readdir: async (path) => fs.readdir(path),
   mkdir: async (path, options) => {
     await fs.mkdir(path, options);

@@ -37,6 +37,14 @@ export function resolveIdentity(
     return undefined;
   if (mission === undefined || role === undefined)
     throw new ValidationError("Mycelial mission and role must both be bound");
+  if (
+    explicitSession !== undefined &&
+    inputs.hostSession !== undefined &&
+    sessionId(explicitSession) !== sessionId(inputs.hostSession)
+  )
+    throw new ValidationError(
+      "Explicit Mycelial session does not match the opened Pi session"
+    );
   const session = explicitSession ?? inputs.hostSession;
   if (session === undefined)
     throw new ValidationError("Mycelial requires a trusted session identity");
