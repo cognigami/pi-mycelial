@@ -40,7 +40,7 @@ With `--from`, the source Markdown remains a canonical repository artifact and g
 
 `agents.json` may be an array of role names, an object keyed by role, or `{ "agents": [...] }`. An object entry may define optional launcher metadata, for example `"reviewer": { "preset": "domain-auditor" }`. `repos.json` accepts the corresponding alias forms. Repository aliases are metadata and do not resolve to filesystem paths in v1. Generated protocol directories are created lazily. Symlinked protocol control paths are rejected.
 
-From a Herdr-managed control shell in the repository, run `./launch-mycelial-<mission-id>.sh` with no arguments to launch every configured participant in its own tab, or pass participant identities to launch a subset. The launcher opens each exact pre-created Pi session and reuses its mission-isolated live Herdr agent on reruns. A missing, symlinked, or mismatched expected session file is an error and is never silently recreated. A configured preset is forwarded as `--presets:preset`; Mycelial does not select models or providers.
+From a Herdr-managed control shell in the repository, run `./launch-mycelial-<mission-id>.sh` with no arguments to launch every configured participant in its own tab, or pass participant identities to launch a subset. The launcher opens each exact pre-created Pi session and reuses its mission-isolated live Herdr agent on reruns. A missing, symlinked, or mismatched expected session file is an error and is never silently recreated. The launcher passes `--presets:preset eng` by default; a role's `preset` in `agents.json` overrides it. Mycelial does not select models or providers.
 
 Bind identity explicitly:
 

@@ -35,7 +35,7 @@ Initialization also creates a minimal repository `AGENTS.md` when that exact fil
 
 Repository aliases default to the current repository directory name. Supply `--repos app,shared-library` to override them. In v1 an alias is message metadata only; Mycelial does not resolve it to a filesystem path. See [`examples/mission/`](../examples/mission/) for a complete minimal mission.
 
-To assign a preset independently from mailbox identity, edit `agents.json` into the object form:
+The launcher starts each participant with the `eng` preset by default. To override a participant's preset independently from mailbox identity, edit `agents.json` into the object form:
 
 ```json
 {
@@ -55,7 +55,7 @@ From a Herdr-managed control shell in the repository, run:
 ./launch-mycelial-release-42.sh
 ```
 
-The launcher leaves the control tab intact, opens one tab per absent participant, starts participant-named Pi agents in their exact pre-created sessions with trusted bindings, and forwards optional presets. The coordinator session is top-level and worker sessions are its children; with `--no-coordinator`, every session is top-level. Rerunning the launcher reports live participants as reused and does not prompt them. Missing or mismatched expected session files fail closed rather than creating replacements. Pass participant identities to launch only a subset:
+The launcher leaves the control tab intact, opens one tab per absent participant, starts participant-named Pi agents in their exact pre-created sessions with trusted bindings, and passes the `eng` preset unless `agents.json` specifies another. The coordinator session is top-level and worker sessions are its children; with `--no-coordinator`, every session is top-level. Rerunning the launcher reports live participants as reused and does not prompt them. Missing or mismatched expected session files fail closed rather than creating replacements. Pass participant identities to launch only a subset:
 
 ```sh
 ./launch-mycelial-release-42.sh coordinator builder-1

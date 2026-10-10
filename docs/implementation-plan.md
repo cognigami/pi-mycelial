@@ -620,8 +620,8 @@ The generated, inspectable shell script must:
 - launch all configured roles by default, with an option to select a subset;
 - open one Herdr tab per role and start a mission-isolated Pi agent in its first
   pane;
-- pass only trusted Mycelial mission/role flags plus an optional role preset;
-- append `--presets:preset <name>` when `agents.json` defines one;
+- pass trusted Mycelial mission/role flags plus a role preset;
+- append `--presets:preset eng` by default, or the configured `agents.json` override;
 - leave model, provider, and thinking-level selection to Pi and pi-presets;
 - provide a short startup prompt that reads the mission, refreshes the roster,
   and checks mail;

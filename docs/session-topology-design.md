@@ -239,7 +239,8 @@ For each selected participant, the launcher:
 4. otherwise creates a tab and starts Pi by reopening the exact session file;
 5. supplies the existing trusted `--mycelial-mission` and
    `--mycelial-role <participant>` bindings; and
-6. forwards an optional preset exactly as today.
+6. passes `--presets:preset eng` unless the participant has a different
+   `preset` in `agents.json`.
 
 Participant identity remains the durable mailbox address. Herdr agent names are
 separate transport identities derived from the prepared Pi session and recorded

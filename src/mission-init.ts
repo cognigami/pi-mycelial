@@ -598,7 +598,7 @@ for role in "\${SELECTED_ROLES[@]}"; do
   fi
   role_position="$(role_index "$role")"
   session_position="$(session_index "$role")"
-  preset="\${PRESETS[$role_position]}"
+  preset="\${PRESETS[$role_position]:-eng}"
   session_file="\${SESSION_FILES[$session_position]}"
   create_agent_tab
   CREATED_ROLES+=("$role")
@@ -606,7 +606,7 @@ for role in "\${SELECTED_ROLES[@]}"; do
   PANES+=("$CREATED_PANE")
   sleep 0.25
   agent_args=(--session "$session_file" --mycelial-mission "$MISSION_ID" --mycelial-role "$role")
-  if [[ -n "$preset" ]]; then agent_args+=(--presets:preset "$preset"); fi
+  agent_args+=(--presets:preset "$preset")
   printf 'Starting %s in tab=%s pane=%s...\\n' "$role" "$CREATED_TAB" "$CREATED_PANE"
   herdr agent start "$herdr_name" --kind "$AGENT_KIND" --pane "$CREATED_PANE" -- "\${agent_args[@]}"
   STARTED_ROLES+=("$role")

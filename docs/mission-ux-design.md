@@ -126,15 +126,17 @@ Also support an object keyed by role when launch metadata is needed:
 }
 ```
 
-Role remains the Mycelial identity. A preset is optional launcher metadata, not
-an inferred identity. For the example above the launcher passes both:
+Role remains the Mycelial identity. A preset override is optional launcher
+metadata, not an inferred identity. The launcher defaults to `eng` and uses the
+configured value for the example above:
 
 ```text
 --mycelial-role reviewer --presets:preset domain-auditor
 ```
 
-Mycelial does not select models, providers, thinking levels, or persona policy.
-Those remain Pi and pi-presets responsibilities.
+Mycelial selects the `eng` preset name unless overridden; pi-presets owns its
+persona behavior. Models, providers, and thinking levels remain Pi and
+pi-presets responsibilities.
 
 ### Generated Herdr launcher
 
@@ -148,7 +150,7 @@ executed explicitly from a Herdr-managed control shell. It must:
 5. Open one Herdr tab per selected role and locate its initial shell pane.
 6. Use the role as the default Herdr agent name.
 7. Start Pi with trusted mission and role flags.
-8. Forward `--presets:preset` only when configured for that role.
+8. Pass `--presets:preset eng` by default, or the configured role override.
 9. Prompt the coordinator first and wait for it to create durable initial
    assignments whose send operations automatically notify delivered workers.
 10. Avoid duplicate launcher prompts for workers when a coordinator is present;

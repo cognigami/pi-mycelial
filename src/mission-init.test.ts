@@ -190,7 +190,10 @@ printf '{"result":{}}\\n'
     let calls = await readFile(herdrLog, "utf8");
     expect(calls.match(/tab create/g)).toHaveLength(3);
     expect(calls).toContain(
-      `agent start ${coordinatorAgent} --kind pi --pane p1 -- --session ${manifest.sessions.coordinator.sessionFile} --mycelial-mission live-test --mycelial-role coordinator`
+      `agent start ${coordinatorAgent} --kind pi --pane p1 -- --session ${manifest.sessions.coordinator.sessionFile} --mycelial-mission live-test --mycelial-role coordinator --presets:preset eng`
+    );
+    expect(calls).toContain(
+      `agent start ${implementerAgent} --kind pi --pane p2 -- --session ${manifest.sessions.implementer.sessionFile} --mycelial-mission live-test --mycelial-role implementer --presets:preset eng`
     );
     expect(calls).toContain(
       `agent start ${reviewerAgent} --kind pi --pane p3 -- --session ${manifest.sessions.reviewer.sessionFile} --mycelial-mission live-test --mycelial-role reviewer --presets:preset domain-auditor`
