@@ -3,16 +3,17 @@
 ## Status and outcome
 
 WP0–WP5 implemented; WP6 automated validation is complete and implementation
-review is approved. Live operator acceptance remains pending. Decisions,
+review is approved. Live operator acceptance passed on the disposable mission. Decisions,
 measurements, test mapping, and limitations
 are recorded in [implementation evidence](long-running-mission-recovery-status.md)
-and the [operator preview runbook](long-running-mission-recovery-runbook.md).
+and the [operator runbook](long-running-mission-recovery-runbook.md).
 Implements the scope of
 [`long-running-mission-recovery-design.md`](long-running-mission-recovery-design.md),
 which remains the product contract. Rotation now has an explicit control-shell
 implementation; additional notification suppression is deliberately not shipped.
 The warm-marker optimization is measured on disposable synthetic mission copies,
-not Benny. The release gate is not fully met until live acceptance.
+not Benny. The rotation release gate is met; the operator subsequently completed
+Benny's rotation successfully.
 
 Deliver two independent outcomes:
 
@@ -76,12 +77,13 @@ WP1 launch-prompt edits and WP6 launcher-test edits must not overlap.
    session-directory resolution, and picker behavior. Reuse the existing
    materialization proofs in `src/session-topology.test.ts` and
    `src/session-topology.integration.test.ts` rather than rebuilding them.
-2. Choose one operator entry point: a thin control-shell CLI calling the
-   TypeScript library is the preferred fit. Specify its supported invocation,
-   mission-root/config resolution, cwd, and session destination. Do not invent
-   a generated shell migration script or expose rotation as an agent tool.
-   If a Pi command is chosen instead, its control session must not belong to
-   the tree being retired.
+2. Provide one installed operator entry point: `~/mycelial/rotate <mission-id>`
+   calls the TypeScript library from any directory. Resolve IDs through the
+   existing global Mycelial configuration; allow an explicit `--mission-dir`
+   without a positional ID. Build/install the standalone CLI with the extension,
+   preserving mutation-free previews and runtime independence from the checkout.
+   Do not invent a generated shell migration script or expose rotation as an
+   agent tool.
 3. Resolve initially unsupported mission shapes explicitly. In particular,
    existing initialization supports `--no-coordinator`; do not silently add a
    participant to rotate such a mission. For the first release, refuse that

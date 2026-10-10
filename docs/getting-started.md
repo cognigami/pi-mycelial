@@ -23,6 +23,9 @@ Install Mycelial from its package repository:
 just install
 ```
 
+This also installs `~/mycelial/rotate`, beside the `missions/` directory. Invoke
+it by path; no `PATH` setup or `just` invocation is needed for ordinary rotation.
+
 Start Pi in the repository where agents should work. After a discovery conversation identifies an optional approved design or implementation plan, initialize the mission with:
 
 ```text
@@ -65,7 +68,11 @@ The launcher leaves the control tab intact, opens one tab per absent participant
 
 Claims establish work ownership, not filesystem isolation. Give concurrent mutating assignments disjoint path scopes. Serialize overlapping files, dependency manifests and lockfiles, repository-wide formatting or generation, and working-copy version-control operations. Read-only investigation and review may run concurrently.
 
-Pi remains responsible for context compaction. Mycelial does not monitor context saturation, automatically rotate sessions, or dynamically scale participants. The [offline operator rotation preview](long-running-mission-recovery-runbook.md) preserves the mission and durable state; it requires mission-wide downtime and has pending live Herdr release acceptance.
+Pi remains responsible for context compaction. Mycelial does not monitor context saturation, automatically rotate sessions, or dynamically scale participants. The [offline operator rotation](long-running-mission-recovery-runbook.md)
+is available from any directory as `~/mycelial/rotate <mission-id>`. Add `--dry-run`
+to preview or `--save-history` to retain old transcripts. It preserves the mission
+and durable state and requires mission-wide downtime for mutation. Disposable
+live Herdr acceptance has passed; see the runbook for evidence and limitations.
 
 ## Launch manually without Herdr
 

@@ -8,6 +8,13 @@
     "mailbox"
   ],
   "type": "module",
+  "piExtensionKit": {
+    "clean": {
+      "extraPaths": [
+        "cli-dist"
+      ]
+    }
+  },
   "pi": {
     "extensions": [
       "./dist/index.js"

@@ -9,16 +9,20 @@
   opening/migrating old transcripts. New dormant files continue using the
   existing public-API materializer. Existing tests prove `SessionManager.list`
   lists each named dormant file once and preserves parent paths; live picker
-  acceptance is still pending.
+  acceptance passed in the disposable mission documented below.
 - Discovery uses `join(getAgentDir(), "sessions")` (including the documented
   `PI_CODING_AGENT_DIR` override), recursively, plus old participant directories
   outside it. A missing/unreadable root or unsafe candidate makes deletion
   incomplete. Custom child directories outside this boundary require retention.
-- Entry point: repository control-shell `just rotate --mission-dir ABSOLUTE`
-  (thin Bun TypeScript adapter). Explicit directory is authoritative; this CLI
-  does not resolve extension JSONC or inherit mission/session bindings. This
-  avoids a second configuration loader. Cwd comes from verified old coordinator
-  header, shared by all participants. Replacements go in that coordinator's
+- Entry point: one installed `~/mycelial/rotate <mission-id>` executable beside
+  `missions/`, runnable from any control-shell directory without `PATH` setup or
+  a command hierarchy. IDs resolve under global `missionRoot` through the existing
+  read-only config loader; `~/mycelial/rotate --mission-dir ABSOLUTE` instead uses
+  an explicit authoritative directory. No second JSONC parser, project-local
+  config, or inherited mission/session binding selects the target. CLI packaging
+  is complete and independently reviewed; validation/install evidence is below.
+  Cwd comes from the verified old coordinator header, shared by all participants.
+  Replacements go in that coordinator's
   existing directory. No agent tool, Pi command, Herdr liveness check, launcher
   regeneration, automatic threshold, or unattended confirmation bypass.
 - Refuse absent managed manifests and coordinator-free missions. Unsafe old
@@ -59,8 +63,8 @@
   ownership is conservatively retained/reported, not automatically deleted.
 - WP6: automated validation complete; tests map all eight design groups; adversarial boundary coverage
   includes publication-sync ambiguity and rollback/cleanup recovery. Full
-  validation results are recorded below. **Live picker/Herdr
-  acceptance is not performed; the release gate is not fully met.**
+  validation results are recorded below. **Live picker/Herdr acceptance also
+  passed on the disposable mission; the rotation release gate is met.**
 - N1: additional suppression blocked as documented below; N2 intentionally not
   implemented. Existing in-flight coalescing and notification outcomes unchanged.
 - Model A/B: not performed; independent operator experiment, no model defaults
@@ -77,7 +81,7 @@
 | 5 — adversarial transaction | Session/cursor/recovery stage open/write/sync/close; worker link, validation/readback, recovery rename/sync, control drift, cancellation, manifest before/after rename, unknown manifest, matching-byte collision, rollback residue and cleanup faults. |
 | 6 — precise history policy | Default versus retention; direct/transitive/unrelated trees; external participant directories; bounded unsafe/unreadable/missing roots, exclusion of readable orphaned/cyclic chains outside the family; descendants-first assertions and changed-identity refusal. |
 | 7 — read-only preview/recheck | All mutation methods throw in dry run; complete filesystem snapshot unchanged; supported-entry dry run/refusal never installs or updates absent/stale sync stamps; large transcript body cannot be read; real invocation rejects drift after a prior preview. |
-| 8 — unchanged relaunch/routing | Fake-Herdr integration launches before/after rotation, asserts new exact paths/identities and preserved eng default, then idempotent reuse and wake routing. **Live lifecycle is not verified.** |
+| 8 — unchanged relaunch/routing | Fake-Herdr integration launches before/after rotation, asserts new exact paths/identities and preserved eng default, then idempotent reuse and wake routing. Live lifecycle is separately verified by the disposable acceptance below. |
 
 Recovery tests demonstrate old-active owned rollback, intended-new cleanup without
 another tree, partial deletions with already missing descendants, changed old
@@ -118,8 +122,8 @@ shared tooling redesign, dependency, preset, protocol or product-policy change.
 The read-only reviewer approved the implementation after accepting R1–R3; no
 confirmed review blockers remain. The final independent reviewer CLI suite passed
 7 tests with 39 assertions. The parent independently reran the final full suite:
-185 tests passed, 0 failed, 853 assertions across 27 files. Live acceptance/N2
-limitations below are unchanged.
+185 tests passed, 0 failed, 853 assertions across 27 files. Subsequent CLI and
+live acceptance evidence is below; N2 remains unshipped.
 
 ## Final automated validation (2026-10-10)
 
@@ -136,13 +140,13 @@ limitations below are unchanged.
 - Supported disposable benchmark completed via `just benchmark-mailbox`.
 - Markdown relative links and fence balance checked for the changed README,
   runbook/design/plan/evidence, getting-started guide and coordination skill.
-- No dependency change, VC mutation, live mission history deletion, model call,
-  Herdr process launch, or further subagent launch was performed.
+- This automated validation sequence performed no dependency change, VC mutation,
+  live mission history deletion, model call, Herdr process launch, or further
+  subagent launch.
 
-Implementation review is approved. The remaining rotation release gate is
-operator-controlled live picker/Herdr acceptance. All new destructive/discovery
-tests inject disposable
-session roots; none scans or rotates actual Pi history. N2, Benny-copy measurement
+Implementation review and subsequent operator-controlled disposable picker/Herdr
+acceptance are approved. Automated destructive/discovery tests inject disposable
+session roots; those automated tests do not rotate actual Pi history. N2, Benny-copy measurement
 and model A/B remain explicitly unperformed as described above.
 
 ## Discovery scoping correction (2026-10-10)
@@ -161,9 +165,95 @@ deletion, and unchanged bytes for excluded sessions. Existing unsafe/missing-roo
 and unreadable-header refusal coverage remains in place.
 
 Focused rotation tests and full supported **build → lint → test** passed after
-this correction: **186 tests, 0 failures, 861 assertions across 27 files**. No
-actual Benny rotation or deletion was performed; rerun its operator dry run to
-confirm the new classification. Live Herdr/picker acceptance remains pending.
+this correction: **186 tests, 0 failures, 861 assertions across 27 files**. That
+validation did not rotate Benny. Subsequent disposable acceptance and the
+operator's successful Benny rotation are below.
+
+## Installed rotate command (2026-10-10)
+
+The operator command is `~/mycelial/rotate <mission-id>` with the existing
+`--dry-run`, `--save-history`, and `--recover` policies. One thin entrypoint reuses
+global configuration and the existing rotation adapter. An explicit
+`--mission-dir` bypasses ID/config lookup. There is no command hierarchy, `PATH`
+installation, new config parser, or new rotation engine.
+
+The supported build compiles one standalone `cli-dist/rotate`; the existing
+installation workflow installs it beside `~/mycelial/missions`. Native runtime
+tests run outside the checkout with neither Bun nor `just` on `PATH`, ignore
+caller `.env`/Bun/project configuration, and verify mutation-free preview/refusal
+paths. Build passed **190 tests, 0 failures, 906 assertions**. The independent
+read-only reviewer approved the CLI and reran its focused suite: **4 tests, 0
+failures, 45 assertions**.
+
+The parent installed the executable through the supported `install-rotate`
+workflow and verified its `--help` from `/` under an empty environment with only
+`HOME` and `/usr/bin:/bin` on `PATH`. This did not rotate or delete any mission.
+The builder's separately reported disposable installation artifact at
+`/tmp/mycelial-rotate-install.4fiKcx/mycelial` remains after denied cleanup; no
+alternate cleanup was attempted.
+
+The operator ran the dummy-project setup script, which initializes and launches
+the test mission only. Read-only inspection of coordinator session
+`01a127a5-bc26-75ce-9127-3710f8871106` confirms live PING/PONG, successful automatic
+wake delivery, done receipts, released claims, and READY. That original session
+shows no rotation; setup completion alone is not treated as the full live gate
+passing.
+
+The operator subsequently stopped the dummy mission, ran
+`~/mycelial/rotate rotation-acceptance --save-history`, and received
+`Rotation: committed`. Live launcher output confirms three fresh sessions and
+new Herdr identities. Read-only verification found all three original transcripts
+retained, new workers linked to the new coordinator, and the same mission/roles.
+New coordinator `01a127b3-b722-7164-8a94-d1bfe17c4fd4` intentionally replayed the
+old PONG, inspected the preserved receipts/released claims, then read normally
+with no new mail and issued no duplicate assignments. Retention rotation and
+fresh-session relaunch have passed. A second live launcher invocation reported
+all three fresh Herdr agents as reused with no new starts. The operator requested
+one new post-rotation PING/PONG; read-only inspection confirmed successful wake
+to the replacement builder, its PONG from the new builder session, automatic wake
+back to the replacement coordinator, a done receipt, and released claims. Fresh
+wake routing has passed.
+
+With the three agents stopped, the operator created tool-disabled one-shot Pi
+forks: child `aa765aee-1408-48ee-8cfc-4e611527a6cc` from the current builder and
+grandchild `b70adbfe-d318-4206-ba2d-2a255b83ef47` from that child. Native default
+`--dry-run` reported exactly five files, ordered grandchild, child, then the
+three current participants. None of the three original retained transcripts
+appeared in that deletion scope. The operator then confirmed downtime and that
+exact five-file destructive scope; native rotation reported `Rotation: committed`.
+Read-only inspection verified all five targeted files absent, all three original
+retained transcripts still present, and three fresh manifest sessions with correct
+worker-to-coordinator parent links. The post-retention PONG and released claim
+also remain present in durable coordination state. No rotation control-directory
+residue remains. Default deletion with direct/transitive children and preservation
+of previously retained history have passed. The operator also confirmed correct
+child/grandchild nesting in the live picker before deletion. After default
+deletion, the unchanged launcher started all three new identities from the active
+manifest. New coordinator `01a127c6-37b5-77bf-a533-ed16beee66c6` refreshed the roster,
+read the preserved results/receipts/released claims, found no new mail, and
+reported READY without new assignments. **Disposable live rotation acceptance is
+complete for both policies**, including known direct/transitive descendants,
+picker hierarchy, relaunch/reuse, preserved retained history, and fresh wake
+routing. Recovery faults remain covered by the automated injected-failure tests,
+not a claimed live-process crash exercise.
+
+## Benny operator rotation (2026-10-10)
+
+After disposable acceptance, the operator previewed `benny-v0`, confirmed mission
+and subagent downtime, and ran the installed command with default deletion.
+Preview and real preflight both listed exactly 17 files: seven managed
+participants and ten descendants. The operator confirmed that destructive scope;
+publication and children-first cleanup completed with `Rotation: committed`.
+Read-only inspection of the active manifest confirms seven fresh session IDs,
+the same participant roles, new Herdr identities, and worker-to-coordinator
+parent links. Benny relaunch has not yet been reported. This is operational
+rotation evidence, not a Benny latency benchmark or model A/B result.
+
+Operator cosmetic feedback: the two confirmations and long path-heavy output are
+verbose; readable session names would be preferable. Recorded as a possible UX
+follow-up, not an implemented change. Current confirmations separately establish
+downtime and approval of the exact permanent-deletion scope; any simplification
+must preserve both decisions. No additional CLI behavior was changed here.
 
 ## WP1 synthetic measurement (2026-10-10)
 

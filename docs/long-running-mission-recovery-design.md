@@ -3,10 +3,10 @@
 ## Status
 
 Binding product contract. Offline operator rotation is implemented with automated
-validation complete and implementation review approved; live Herdr/picker release
-acceptance remains pending.
+validation complete, implementation review approved, and live Herdr/picker release
+acceptance passed on a disposable mission.
 See [implementation evidence](long-running-mission-recovery-status.md) and the
-[operator preview runbook](long-running-mission-recovery-runbook.md). The narrow
+[operator runbook](long-running-mission-recovery-runbook.md). The narrow
 warm-marker optimization is tested and measured on disposable synthetic copies,
 not Benny. Additional notification suppression is not implemented because its
 future-read liveness gate remains unproven. This design revisits the deferred
@@ -58,7 +58,9 @@ No performance fix alone proves that a particular model response will be fast.
 - The operation is **not LLM-driven**. Use the existing TypeScript session
   topology/validation code and Pi's public `SessionManager` API to prepare
   dormant named sessions with a fresh top-level coordinator and worker
-  parent-session links. A Pi command or thin CLI can call this library; a
+  parent-session links. The installed `~/mycelial/rotate <mission-id>` command calls
+  this library from any directory, using the existing global `missionRoot`
+  configuration or an explicit `--mission-dir` instead of a positional ID. A
   standalone generated shell script should not hand-assemble Pi session JSONL,
   rewrite cursor data, or own multi-file rollback. The existing launcher reads
   `sessions.json` on each run: unchanged mission/participant names need no

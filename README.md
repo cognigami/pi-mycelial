@@ -11,6 +11,10 @@ just build
 just install
 ```
 
+Installation also puts a single `rotate` executable in `~/mycelial`, beside the
+`missions/` directory. Invoke it by path from any directory; no `PATH` setup or
+runtime dependency installation is needed.
+
 The managed artifact is `dist/index.js`. Set `PI_CODING_AGENT_DIR` to install into an isolated Pi agent directory. The package also declares the neutral `mycelial-coordination` skill through standard `pi.skills`; pi-extension-kit installs and contributes it only while the managed extension is enabled and loaded. A loaded but unbound extension may advertise the skill, but its procedures apply only when Mycelial tools are available or a mission has been declared.
 
 ## Mission setup
@@ -54,7 +58,28 @@ Environment equivalents are `PI_MYCELIAL_MISSION`, `PI_MYCELIAL_ROLE`, and optio
 
 Claims coordinate task ownership; they do not lock files. Concurrent mutating assignments must have disjoint path scopes. Serialize overlapping files, dependency manifests and lockfiles, repository-wide formatting or generation, and version-control operations that mutate the shared working copy. Parallel read-only investigation and review are safe.
 
-Stable sessions leave context compaction to Pi. Mycelial does not monitor context, automatically rotate sessions, or dynamically create workers. An explicit offline operator rotation preview is available through the repository's `just rotate` recipe; see the [runbook](docs/long-running-mission-recovery-runbook.md) and [acceptance limitations](docs/long-running-mission-recovery-status.md). Live Herdr acceptance is still required before release. Reusable topology uses public `@earendil-works/pi-coding-agent` APIs available in version 0.82.1 and newer.
+Stable sessions leave context compaction to Pi. Mycelial does not monitor context, automatically rotate sessions, or dynamically create workers. An explicit offline operator rotation is available as `~/mycelial/rotate <mission-id>`; see the [runbook](docs/long-running-mission-recovery-runbook.md) and [validation evidence and limitations](docs/long-running-mission-recovery-status.md). Disposable live Herdr acceptance has passed. Reusable topology uses public `@earendil-works/pi-coding-agent` APIs available in version 0.82.1 and newer.
+
+## Offline rotation command
+
+Stop every agent and subagent in the mission before actual rotation. From an
+independent operator shell, in any directory:
+
+```sh
+~/mycelial/rotate release-42 --dry-run
+~/mycelial/rotate release-42 --save-history
+# Default permanently removes the verified old conversation tree:
+~/mycelial/rotate release-42
+# Resume an interrupted operation without preparing another tree:
+~/mycelial/rotate release-42 --recover
+```
+
+The mission ID resolves under the same global `missionRoot` configuration used
+by the extension (default `~/mycelial/missions`). Use
+`~/mycelial/rotate --mission-dir /absolute/mission/path` for an explicit directory.
+`~/mycelial/rotate --help` describes the flags. After `Rotation: committed`, use the
+mission's existing project launcher; mission identity and durable coordination
+state remain unchanged. Live acceptance limitations still apply.
 
 ## Configuration
 

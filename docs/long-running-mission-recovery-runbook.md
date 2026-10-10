@@ -1,9 +1,9 @@
-# Offline mission conversation rotation (operator preview)
+# Offline mission conversation rotation (operator runbook)
 
-Automated implementation is available; **release acceptance is not complete**.
-Do not use live Benny history for acceptance. First exercise an operator-controlled
-disposable mission with retention, then default deletion and a known child tree.
-See [implementation evidence](long-running-mission-recovery-status.md).
+Automated validation and operator-controlled disposable live acceptance passed
+for retention and default deletion with direct/transitive children, live picker
+hierarchy, relaunch/reuse, and fresh wake routing. See
+[implementation evidence and limitations](long-running-mission-recovery-status.md).
 
 ## Before rotating
 
@@ -14,31 +14,38 @@ manual/launcher starts until the operation finishes. A false downtime confirmati
 can cause lost transcript writes, cursor divergence, or concurrent claim work.
 Neither the operation lock, Herdr absence, nor roster expiry proves downtime.
 
-Before invoking rotation, explicitly prepare dependencies and validate this
-checkout using the supported `just build` workflow. Setup may install dependencies
-and write its sync stamp; it is separate from rotation and dry run. The `rotate`
-recipe has **no sync/install prerequisite** and invokes Bun with `--no-install`
-to disable import-time automatic installation before CLI safeguards run. Missing Bun or dependencies produce
-an ordinary startup refusal; rotation never installs them or refreshes a stale
-sync stamp automatically.
+Install/update once from the package checkout using the supported `just install`
+workflow. It builds and installs the managed Pi extension and one `rotate`
+executable in `~/mycelial`, beside `missions/`. No `PATH` setup or command
+hierarchy is needed. Installation is separate from rotation and may sync build
+dependencies; invoking the installed command does not install dependencies or
+load project Bun configuration.
 
-Then, from an independent operator control shell in this package checkout:
+Then, from an independent operator control shell in **any directory**:
 
 ```sh
-just rotate --mission-dir /absolute/missionRoot/mission-id --dry-run
-just rotate --mission-dir /absolute/missionRoot/mission-id --save-history
-# Default permanent deletion, only after disposable acceptance:
-just rotate --mission-dir /absolute/missionRoot/mission-id
+~/mycelial/rotate mission-id --dry-run
+~/mycelial/rotate mission-id --save-history
+# Default permanent deletion (review the displayed family):
+~/mycelial/rotate mission-id
 ```
 
-The directory is explicit and authoritative: this adapter does **not** load
-extension JSONC configuration or infer identity from flags/environment. Use the
-mission directory reported at initialization, including any configured custom
-mission root. Paths must be normalized, absolute, and have no symlink ancestors;
-use canonical paths when the OS temporary directory is an alias. The command
-runs the repository's Bun source through the supported Justfile recipe; it is
-not registered as an agent tool and is not an installed-extension CLI. Mutation
-requires an interactive TTY and refuses Pi agent shell markers. There is no
+The mission ID resolves beneath the same global `missionRoot` configuration used
+by Mycelial initialization (default `~/mycelial/missions`), using the existing
+read-only config loader. No project-local config or inherited mission/session
+binding selects the target. Configure custom roots as absolute paths for
+cwd-independent selection. An explicit directory bypasses that lookup:
+
+```sh
+~/mycelial/rotate --mission-dir /absolute/missionRoot/mission-id --dry-run
+```
+
+Use the directory reported at initialization; do not combine an explicit
+directory with a positional mission ID. Paths must be normalized, absolute, and
+have no symlink ancestors; use canonical paths when the OS temporary directory
+is an alias. `~/mycelial/rotate --help` describes the interface. Rotation is not registered
+as an agent tool. Mutation requires an interactive TTY and refuses Pi agent shell
+markers. There is no
 `--yes` or unattended bypass. Cancellation is rechecked immediately before the
 actual manifest rename, after all manifest staging awaits. Cancellation after
 publication cannot roll back active replacements; normal manifest classification
@@ -100,7 +107,7 @@ A separate `.session-rotation-recovery/` directory excludes concurrent recovery
 invocations; it also never auto-breaks on age or PID.
 
 ```sh
-just rotate --mission-dir /absolute/missionRoot/mission-id --recover
+~/mycelial/rotate mission-id --recover
 ```
 
 First establish that the prior rotation process has exited. Recovery asks for
@@ -138,10 +145,14 @@ remove either transcript family. A leftover recovery-exclusion directory also
 requires explicit operator verification and empty-directory removal before
 retry; it cannot establish agent downtime.
 
-## Operator release acceptance still required
+## Validation and limitations
 
-In a disposable mission, verify the actual picker hierarchy, first retention
-rotation, launcher reuse and trusted identities, mail/claim semantics, live
-Herdr wake routing, then default deletion with direct/transitive known children.
-Fake-Herdr tests prove argument routing, not live process lifecycle. No live
-Benny rotation, operator-provided Benny benchmark, or model A/B has been done.
+Disposable mission `rotation-acceptance` passed actual picker hierarchy,
+retention, launcher reuse and trusted identities, preserved mail/receipts/released
+claims, fresh Herdr wake routing, and default deletion with direct/transitive
+children. A later default rotation preserved the earlier retained generation.
+Relaunch after default deletion also passed. Failure/recovery boundaries are
+covered by automated injected-failure tests, not a live-process crash exercise.
+The operator subsequently completed Benny rotation successfully. Benny relaunch
+has not yet been reported; no operator-provided Benny benchmark or model A/B has
+been done.
