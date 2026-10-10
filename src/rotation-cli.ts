@@ -1,3 +1,4 @@
+import { basename, dirname } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { nodeFileSystem } from "./filesystem";
 import { ValidationError } from "./identifiers";
@@ -40,19 +41,60 @@ export function parseRotationArgs(args: readonly string[]): RotationCliOptions {
     );
   return options;
 }
-export function formatRotationReport(report: RotationReport): string {
-  return [
-    `Mission: ${report.missionId}; participants: ${report.roles.length} (${report.roles.join(", ")})`,
+export function formatRotationReport(
+  report: RotationReport,
+  dryRun = false
+): string {
+  const managedNames = new Map(
+    Object.values(report.mission?.sessions?.sessions ?? {}).map((session) => [
+      session.sessionFile,
+      session.name,
+    ])
+  );
+  const familyByPath = new Map(report.family.map((file) => [file.path, file]));
+  const descendants = report.family.filter(
+    (file) => !managedNames.has(file.path)
+  ).length;
+  const lines = [
+    `Mission: ${report.missionId}; participants: ${report.roles.length}; descendants: ${descendants}`,
     `Discovery roots:\n${report.roots.map((path) => `  ${path}`).join("\n")}`,
     `${report.retention ? "Retain" : "Delete LAST"}: ${report.family.length} verified old session files (descendants first)`,
-    ...report.family.map((file) => `  ${file.path} [${file.header.id}]`),
+  ];
+  let previousDirectory: string | undefined;
+  for (const file of report.family) {
+    const directory = dirname(file.path);
+    if (directory !== previousDirectory) {
+      lines.push(`Sessions in ${directory}:`);
+      previousDirectory = directory;
+    }
+    let label = managedNames.get(file.path);
+    if (!label) {
+      // Discovery already guarantees that each descendant reaches a managed
+      // session. Use that known name rather than scanning transcript bodies.
+      let parent = file.header.parentSession;
+      while (parent) {
+        const name = managedNames.get(parent);
+        if (name) {
+          label = `Descendant of ${name}`;
+          break;
+        }
+        parent = familyByPath.get(parent)?.header.parentSession;
+      }
+    }
+    lines.push(`  ${label ?? "Session"} — ${basename(file.path)}`);
+  }
+  lines.push(
     ...report.warnings.map((warning) => `WARNING: ${warning}`),
     ...report.discoveryProblems.map(
       (problem) => `DISCOVERY INCOMPLETE: ${problem}`
     ),
-    ...report.refusals.map((refusal) => `REFUSED: ${refusal}`),
-    "Dry run does not reserve state, create replacement IDs, or prove downtime. A real operation repeats preflight.",
-  ].join("\n");
+    ...report.refusals.map((refusal) => `REFUSED: ${refusal}`)
+  );
+  if (dryRun)
+    lines.push(
+      "Dry run only; nothing changed. A real run repeats preflight and requires confirmed downtime."
+    );
+  return lines.join("\n");
 }
 export function requireOperatorShell(
   env: NodeJS.ProcessEnv,
@@ -77,7 +119,7 @@ export async function runRotationCli(args: string[]): Promise<number> {
   const options = parseRotationArgs(args);
   if (options.dryRun) {
     const report = await preflightRotation(nodeFileSystem, options);
-    console.log(formatRotationReport(report));
+    console.log(formatRotationReport(report, true));
     return report.refusals.length ? 1 : 0;
   }
   requireOperatorShell(

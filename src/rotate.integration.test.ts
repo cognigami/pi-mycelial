@@ -161,6 +161,10 @@ test("native ID lookup uses default then global JSONC config, ignores caller ove
   ]);
   expect(byId.code).toBe(0);
   expect(byId.stdout).toContain("Mission: configured; participants: 3");
+  expect(byId.stdout).toContain("configured: builder — ");
+  expect(byId.stdout).toContain("configured: coordinator — ");
+  expect(byId.stdout).toContain("configured: reviewer — ");
+  expect(byId.stdout).toContain("Dry run only; nothing changed.");
   expect(byId.stdout).toBe(byDirectory.stdout);
   // Explicit directories do not depend on the configured missionRoot.
   expect(

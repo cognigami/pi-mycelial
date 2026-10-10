@@ -53,9 +53,12 @@ and explicit recovery apply.
 
 Dry run is read-only: no operation lock, directories, sessions, UUIDs, cursors,
 markers, receipts, claims, roster refresh, manifest change, or prompts. It shows
-roles, roots, exact verified old family, unread canonical mail (including missing
-markers), live old-session claims, and refusal reasons. It neither reserves a
-snapshot nor establishes downtime. Real runs repeat the checks under exclusion,
+participant/descendant counts, roots, exact verified old family, unread canonical
+mail (including missing markers), live old-session claims, and refusal reasons.
+Managed names come from the manifest; descendants are labelled by their nearest
+managed participant without scanning transcripts for display names. An absolute
+directory heading plus each filename identifies every exact path in the displayed
+children-first order. It neither reserves a snapshot nor establishes downtime. Real runs repeat the checks under exclusion,
 show warnings/scope, and require downtime and final destructive confirmations.
 
 Only initialized missions with an existing `sessions.json`, regular launcher,

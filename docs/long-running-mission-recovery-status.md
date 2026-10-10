@@ -249,11 +249,22 @@ the same participant roles, new Herdr identities, and worker-to-coordinator
 parent links. Benny relaunch has not yet been reported. This is operational
 rotation evidence, not a Benny latency benchmark or model A/B result.
 
-Operator cosmetic feedback: the two confirmations and long path-heavy output are
-verbose; readable session names would be preferable. Recorded as a possible UX
-follow-up, not an implemented change. Current confirmations separately establish
-downtime and approval of the exact permanent-deletion scope; any simplification
-must preserve both decisions. No additional CLI behavior was changed here.
+The operator's cosmetic follow-up is implemented and installed. Reports now show
+managed manifest names and truthful direct/transitive descendant labels using the
+nearest managed participant name. Descendant display names are not guessed or
+looked up by scanning transcript bodies. Each contiguous directory is printed
+once with exact filenames beneath it, preserving the complete children-first
+scope without repeating directory prefixes or UUIDs. Only previews carry the
+dry-run note; real rotation/recovery retains existing progress and diagnostics.
+Both downtime and exact permanent-deletion confirmations are unchanged, as are
+all discovery/publication/cleanup/recovery decisions. No new option or read/write
+operation was introduced.
+
+The independent read-only reviewer approved the presentation safety. Focused
+validation passed **13 tests, 0 failures, 90 assertions**; full supported
+**build → lint → test** passed **194 tests, 0 failures, 934 assertions**. The
+updated standalone executable was installed through `install-rotate`; no mission
+rotation or agent restart was performed during this cosmetic follow-up.
 
 ## WP1 synthetic measurement (2026-10-10)
 
