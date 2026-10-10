@@ -75,7 +75,7 @@
 | 3 — receipts/threads/claims | Retention integration preserves every preexisting mission/protocol byte except manifest; receipts/linked replies remain readable, old claims contend/reject until ordinary expiry takeover. |
 | 4 — refusal/exclusion/downtime | Missing/symlinked files, corrupt cursors, unsupported shapes, explicit downtime/destructive cancellation, stale and simultaneous operation tests; cold/active rebind write observation. No Herdr liveness inference. |
 | 5 — adversarial transaction | Session/cursor/recovery stage open/write/sync/close; worker link, validation/readback, recovery rename/sync, control drift, cancellation, manifest before/after rename, unknown manifest, matching-byte collision, rollback residue and cleanup faults. |
-| 6 — precise history policy | Default versus retention; direct/transitive/unrelated trees; external participant directories; bounded unsafe/unreadable/missing roots, broken/cyclic ancestry; descendants-first assertions and changed-identity refusal. |
+| 6 — precise history policy | Default versus retention; direct/transitive/unrelated trees; external participant directories; bounded unsafe/unreadable/missing roots, exclusion of readable orphaned/cyclic chains outside the family; descendants-first assertions and changed-identity refusal. |
 | 7 — read-only preview/recheck | All mutation methods throw in dry run; complete filesystem snapshot unchanged; supported-entry dry run/refusal never installs or updates absent/stale sync stamps; large transcript body cannot be read; real invocation rejects drift after a prior preview. |
 | 8 — unchanged relaunch/routing | Fake-Herdr integration launches before/after rotation, asserts new exact paths/identities and preserved eng default, then idempotent reuse and wake routing. **Live lifecycle is not verified.** |
 
@@ -144,6 +144,26 @@ operator-controlled live picker/Herdr acceptance. All new destructive/discovery
 tests inject disposable
 session roots; none scans or rotates actual Pi history. N2, Benny-copy measurement
 and model A/B remain explicitly unperformed as described above.
+
+## Discovery scoping correction (2026-10-10)
+
+Benny's operator dry run exposed a global ancestry check that refused deletion
+because readable Scotty sessions referenced missing parents. Those sessions were
+never in Benny's verified family. Discovery now selects only chains that reach
+an old managed session; other readable orphaned/cyclic chains remain untouched
+without blocking deletion. Unreadable/unsafe headers and incomplete root scans
+still refuse deletion because they can hide actual descendant links.
+
+A disposable regression includes orphaned/cyclic Scotty sessions, an orphan's
+child sharing the managed directory, and real direct/transitive mission children
+in other project directories. It proves mutation-free preflight, exact default
+deletion, and unchanged bytes for excluded sessions. Existing unsafe/missing-root
+and unreadable-header refusal coverage remains in place.
+
+Focused rotation tests and full supported **build → lint → test** passed after
+this correction: **186 tests, 0 failures, 861 assertions across 27 files**. No
+actual Benny rotation or deletion was performed; rerun its operator dry run to
+confirm the new classification. Live Herdr/picker acceptance remains pending.
 
 ## WP1 synthetic measurement (2026-10-10)
 

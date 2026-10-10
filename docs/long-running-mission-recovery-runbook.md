@@ -64,9 +64,12 @@ session directories outside that tree. Pi's `PI_CODING_AGENT_SESSION_DIR`,
 `--session-dir`, and `sessionDir` setting do not redefine this default discovery
 root: the old participant file paths supply their custom roots. Custom children
 in other, unlisted directories require `--save-history`. No machine-wide scan
-is performed. Symlinks, unreadable roots/candidates, unsupported headers, or
-unverified/cyclic parent chains make deletion incomplete. Retention may proceed
-with discovery warnings if core managed files and protocol state validate.
+is performed. Symlinks, unreadable roots/candidates, or unsupported headers make
+deletion incomplete because their parent links cannot be inspected. Readable
+orphaned or cyclic chains that never reach an old managed session are excluded
+from the family, not deletion blockers. Directory names do not establish or
+exclude membership. Retention may proceed with discovery warnings if core
+managed files and protocol state validate.
 
 Default cleanup permanently unlinks exactly the verified old managed JSONL files
 and recursively discovered descendants, children first, **last**, after one

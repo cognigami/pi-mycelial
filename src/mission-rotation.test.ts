@@ -848,14 +848,66 @@ test("corrupt/mismatched cursors and unsupported mission shapes fail core prefli
   ).toContain("Coordinator-free");
 });
 
-test("incomplete roots, unreadable candidates, symlinked scan directories and broken/cyclic ancestry cannot authorize deletion", async () => {
+test("readable orphaned/cyclic sessions do not block another mission or enter its deletion set", async () => {
   const f = await fixture();
-  const orphan = join(f.input.defaultSessionRoot, "orphan.jsonl");
-  const cycleA = join(f.input.defaultSessionRoot, "cycle-a.jsonl");
-  const cycleB = join(f.input.defaultSessionRoot, "cycle-b.jsonl");
-  await child(orphan, join(f.root, "missing.jsonl"));
+  const scotty = join(f.input.defaultSessionRoot, "scotty");
+  const orphan = join(scotty, "orphan.jsonl");
+  // Even sharing a managed session directory does not establish membership.
+  const orphanChild = join(
+    dirname(f.old.sessions.coordinator.sessionFile),
+    "orphan-child.jsonl"
+  );
+  const cycleA = join(scotty, "cycle-a.jsonl");
+  const cycleB = join(scotty, "cycle-b.jsonl");
+  await child(orphan, join(scotty, "missing-parent.jsonl"));
+  await child(orphanChild, orphan);
   await child(cycleA, cycleB);
   await child(cycleB, cycleA);
+  // Conversely, a different project directory cannot exclude a real child.
+  const direct = join(scotty, "mission-child.jsonl");
+  const transitive = join(
+    f.input.defaultSessionRoot,
+    "elsewhere",
+    "child.jsonl"
+  );
+  await child(direct, f.old.sessions.builder.sessionFile);
+  await child(transitive, direct);
+  const untouched = new Map(
+    await Promise.all(
+      [orphan, orphanChild, cycleA, cycleB].map(
+        async (path) => [path, await readFile(path)] as const
+      )
+    )
+  );
+  const expected = [
+    ...Object.values(f.old.sessions).map((session) => session.sessionFile),
+    direct,
+    transitive,
+  ].sort();
+  const before = await snapshot(f.root);
+  const report = await preflightRotation(nodeFileSystem, f.input);
+  expect(report.discoveryProblems).toEqual([]);
+  expect(report.refusals).toEqual([]);
+  expect(report.family.map((file) => file.path).sort()).toEqual(expected);
+  expect(await snapshot(f.root)).toEqual(before);
+  const deleted: string[] = [];
+  const fs: FileSystem = {
+    ...nodeFileSystem,
+    unlink: async (path) => {
+      if (path.endsWith(".jsonl")) deleted.push(path);
+      await nodeFileSystem.unlink(path);
+    },
+  };
+  expect((await rotateMission(fs, f.input, operator())).state).toBe(
+    "committed"
+  );
+  expect(deleted.sort()).toEqual(expected);
+  for (const [path, bytes] of untouched)
+    expect(await readFile(path)).toEqual(bytes);
+});
+
+test("incomplete roots, unreadable candidates and symlinked scan directories still forbid deletion", async () => {
+  const f = await fixture();
   await symlink(
     dirname(f.old.sessions.coordinator.sessionFile),
     join(f.input.defaultSessionRoot, "linked-directory")
@@ -870,8 +922,6 @@ test("incomplete roots, unreadable candidates, symlinked scan directories and br
     },
   };
   const report = await preflightRotation(fs, f.input);
-  expect(report.discoveryProblems.join()).toContain("Cyclic");
-  expect(report.discoveryProblems.join()).toContain("Unverified parent");
   expect(report.discoveryProblems.join()).toContain("symlink");
   expect(report.discoveryProblems.join()).toContain("unreadable candidate");
   expect(report.family).toHaveLength(3);

@@ -166,5 +166,8 @@ find descendants. Delete only this verified family. Do not scan the entire
 machine. Custom child sessions stored in other, unlisted directories are
 outside this discovery boundary: the operator must use `--save-history` when
 such sessions exist. Refuse destructive cleanup if a required root cannot be
-scanned or a candidate file cannot be safely verified. This bounded scan is
-not a universal proof that no Pi session elsewhere references an old parent.
+scanned or a candidate file cannot be safely verified. A readable orphaned or
+cyclic chain that never reaches an old managed session is outside the verified
+family: retain it without treating it as incomplete discovery. Do not infer
+membership from project-directory names. This bounded scan is not a universal
+proof that no Pi session elsewhere references an old parent.

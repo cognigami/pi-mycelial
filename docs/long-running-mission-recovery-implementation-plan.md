@@ -155,6 +155,8 @@ needed to avoid loading complete transcripts.
   and transitive children, unrelated families, malformed/unsupported headers,
   cycles, missing references, unreadable candidates, and overlapping roots.
   Do not use names, timestamps, or shared directories as proof of ancestry.
+  Readable orphaned/cyclic chains outside the managed family are excluded, not
+  global deletion blockers; unreadable headers and incomplete scans still block.
 - Be conservative when an unreadable/unsafe candidate prevents proving the
   discovery scope complete. Report the exact problem and refuse default
   deletion; retention may proceed only when all core old-session checks pass.

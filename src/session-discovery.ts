@@ -103,26 +103,10 @@ export async function discoverSessionFamily(
       }
     }
   }
-  // Broken/cyclic ancestry cannot prove membership and cannot authorize deletion.
-  for (const candidate of candidates.values()) {
-    const chain = new Set<string>();
-    let current: VerifiedSession | undefined = candidate;
-    while (current?.header.parentSession && !selected.has(current.path)) {
-      if (chain.has(current.path)) {
-        problems.push(`Cyclic session ancestry: ${candidate.path}`);
-        break;
-      }
-      chain.add(current.path);
-      const parent = current.header.parentSession;
-      current = candidates.get(parent);
-      if (!current) {
-        problems.push(
-          `Unverified parent ${parent} referenced by ${candidate.path}`
-        );
-        break;
-      }
-    }
-  }
+  // Readable chains that never reach a managed session are outside this family,
+  // including orphans and cycles. They grant no deletion permission and do not
+  // make the scan incomplete. Unreadable headers/roots still report problems
+  // above because they could hide a direct link to a managed session.
   // Descendants first; old managed coordinator last.
   const depth = (file: VerifiedSession): number => {
     let value = 0;
