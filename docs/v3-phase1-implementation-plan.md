@@ -1,0 +1,44 @@
+# Mycelial v3 Phase 1 implementation plan
+
+**Status:** ready for a single implementing agent; no Mycelial mission or Phase 2 infrastructure for this work. Read [the proposed design](v3-design.md) and [discovery](v3-discovery.md). The operator approved trying Phase 1 while Benny continues independently. This plan is a short work sequence, not a task graph or an additional release-gate catalog.
+
+## Outcome and limits
+
+A freshly launched or rotated coordinator resumes from a bounded, source-linked operational handoff, checks unread mail and live ownership, and chooses the next useful, falsifiable product test rather than reconstructing the entire mission or promoting every unfinished release criterion into a blocker. A builder with a bounded assignment can pursue the test within delegated authority. Genuine PIT, source-rights, broker, and product-approval limits remain intact. The running Benny mission is **not** changed by this work.
+
+**In scope:** generated mission/launcher instructions, small package guidance where needed, a practical handoff convention in an existing repository status document, draft design/planning prompt wording, focused tests, and offline/disposable validation. A new mission with no status handoff must still start sensibly without a new mandatory file or config field. Design/planning guidance is trialed before installing a global `/mycelial-design` prompt.
+
+**Out of scope:** staff participants or cross-inbox reads, new mailbox/cursor/claim formats, an index or memory database, automatic rotation or supervision, live Benny edits or Gateway access, a universal release rule, and new approval steps per task. Do not loosen existing trusted identity, claim, wake, or operator-controlled rotation contracts.
+
+## Sequence
+
+### 1. Establish the case and test the wording (read-only)
+
+Use the surviving Benny coordinator session `01a1288c-4b49-7d25-9c26-d458fb7693bd` as the bounded cold-start case. Its startup tool results show what the coordinator actually loaded. Use recorded content and historical repository revisions when available; do **not** read today's mutable claims/status and present them as the past. Record what was available, what remains unknown, the observed startup request sizes, and the smallest source-linked handoff that would support the next correct action. Try one false/stale status assertion and require targeted verification or an explicit unknown. This is an offline decision comparison, not a claim of a controlled latency A/B or live mission replay.
+
+Test a brief coordinator/builder policy against two cases: Benny A/C can be tested independently while D awaits the operator's Gateway interaction; Brackets PAPER learning can be distinguished from production authorization without dismissing real broker hazards. The policy should elicit a testable hypothesis, falsifier, bounded authority, permitted claim, and next action—not another full-release proof. If historical state needed for a strong replay is unavailable, state the gap and proceed with a disposable test; do not spend the project on recovering every historical message.
+
+Record concise evidence and the candidate wording in this plan or a small companion Markdown draft. Keep the trial unbound and read-only: no `agent_*` mutation, repo mutation in Benny, live mission launch, or use of its current state as historical truth. Benny may keep running and may later rotate with `--save-history`; this preserves old Pi transcripts, **not** snapshots of mutable mission state or repository files.
+
+### 2. Implement the minimal Phase 1 behavior
+
+Start a new described JJ change for implementation, leaving the documentation baseline untouched. Likely touch points are `src/mission-init.ts`, its tests, and `skills/mycelial-coordination/SKILL.md` only if existing neutral guidance needs a narrow correction. Do not mechanically paste a large design prompt into every launched session.
+
+- Replace unconditional “read every canonical artifact”/historical reconciliation at startup with: load the bound mission and repository instructions, use a short current handoff *when one exists*, read bounded unread mail, refresh roster and check active ownership, then inspect specific source artifacts for unresolved decisions. Missing/stale/contradictory handoff means verify the affected claim or say it is unknown; never infer completion from a summary. Preserve idempotence and prevent duplicate assignments after rotation.
+- Make the coordinator **responsible for the next real-input experiment**. It may delegate a falsifiable question, test and next recommendation to a builder under a specific path/authority/stop boundary; a blocked lane must not idle independent outputs. Distinguish interim testing, final acceptance, and actions needing operator approval. Keep the generated mission's final completion contract intact unless an explicit product decision changes it; clarify that it does not forbid truthful interim outputs.
+- Reinforce the already documented workflow boundary: use `agent_*` for mission state and dedicated Pi tools for supported operations; do not shell into external mission storage, use `/tmp` for mission work, or route around sandbox denials. A missing suitable tool is a reported blocker, not a reason to try another shell. Keep this concise and high-salience in coordinator/worker guidance rather than creating new sandbox machinery.
+- Draft concise design/planning prompts in repository Markdown for the two replay cases. They should establish first usable output, interim claims, delegated risk/choice, first empirical test, and negative scope. Do not install a global Pi command or mandate a new checklist before its wording is evaluated.
+
+Use an existing project execution/status file for the current handoff, with a small top section and source pointers. The implementation should explain this convention, not write a second status database or assume that all repositories have a fixed status filename. Avoid a hard token limit invented without evidence; prove bounded behavior by showing that startup does not expand with mission history under the disposable cases.
+
+### 3. Validate without touching a live mission
+
+Add focused tests where generated guidance and launcher prompts live (`src/mission-init.test.ts`, and relevant rotation/session tests only if needed). Assert that new missions can start without a handoff, generated instructions prefer a bounded handoff and unread mail over historical replay, and relaunch remains idempotent. Keep existing claim/cursor/rotation behavior intact; extend their synthetic tests only if implementation changes those contracts. **Prompt-string tests cannot prove model judgment:** use the separate offline replay to check whether a fresh agent verifies stale/contradictory handoff claims and chooses the next bounded action. Do **not** invoke the operator-only `rotate` command from an agent, edit Benny's mission controls, or treat synthetic tests as a live Herdr/rotation acceptance.
+
+Use the supported `test` tool for focused coverage, then `build`, `lint`, and `test` for full validation in that order. These tools may use project test fixtures internally; the agent itself must not write mission scratch into `/tmp`. Compare disposable coordinator startup content and decisions with the frozen Benny case, reporting input/request size and what was not measured. A single read-only reviewer should examine the final Phase 1 change for behavior, authority boundaries, replay honesty, and unintended mission/rotation regressions; fix demonstrated defects, not speculative expansions.
+
+## Completion / handoff to the operator
+
+Report the proposed first usable output and next-action decisions in the trial cases, startup input sizes or why they could not be measured, tests and build results, remaining unknowns, and whether Phase 1 appears sufficient to defer Phase 2. Show where the draft design/planning wording lives and recommend whether to make `/mycelial-design` a global Pi prompt after operator evaluation. Do not claim reduced live Benny latency, 37M-token mitigation, or staff-network benefit from an offline trial.
+
+**Stop rather than expand scope** if the replay requires uncaptured historical state, a sandbox denial has no supported Pi tool, or safe startup needs a new protocol mechanism. Report the specific gap and a minimal next decision. No per-slice independent reviews, mandatory approval ledger, or automatic Phase 2 kickoff.
