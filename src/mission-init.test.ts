@@ -222,6 +222,40 @@ printf '{"result":{}}\\n'
     expect(calls).toContain(
       "Check mail at atomic boundaries, not in a polling loop"
     );
+    const initialCoordinatorPrompt = calls
+      .trimEnd()
+      .split("\n")
+      .find((line) => line.startsWith(`agent prompt ${coordinatorAgent} `));
+    expect(initialCoordinatorPrompt).toContain("current handoff");
+    expect(initialCoordinatorPrompt).toContain("bounded unread mail");
+    expect(initialCoordinatorPrompt).toContain(
+      "defer potentially duplicate assignments"
+    );
+    // This first launch had no status document. A later short handoff is an
+    // optional input for the agent, not a launcher-side replay or claim proof.
+    await mkdir(join(cwd, "docs"));
+    await writeFile(
+      join(cwd, "docs", "execution-status.md"),
+      "# Current handoff\nLane A: owner unknown; lane B: independent.\n"
+    );
+    await writeFile(herdrState, `${implementerAgent}\n${reviewerAgent}\n`);
+    await writeFile(herdrLog, "");
+    const resumed = await execFileAsync(
+      "bash",
+      [result.launcherFile, "coordinator"],
+      { env: environment }
+    );
+    expect(resumed.stdout).toContain("started: coordinator");
+    calls = await readFile(herdrLog, "utf8");
+    expect(calls.match(/tab create/g)).toHaveLength(1);
+    expect(calls).not.toContain(`agent start ${implementerAgent}`);
+    expect(calls).not.toContain("Lane A: owner unknown");
+    expect(
+      calls
+        .trimEnd()
+        .split("\n")
+        .find((line) => line.startsWith(`agent prompt ${coordinatorAgent} `))
+    ).toBe(initialCoordinatorPrompt);
 
     await writeFile(herdrLog, "");
     const second = await execFileAsync("bash", [result.launcherFile], {

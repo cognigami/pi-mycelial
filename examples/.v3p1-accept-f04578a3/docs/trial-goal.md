@@ -1,0 +1,3 @@
+# Synthetic mission goal
+
+Produce an honestly labeled read-only diagnostic of `data/fixture-input.md` by checking whether its toy value is positive. It is independent of lanes A and B and may be shared as an interim fixture-only result. Lanes A and B must also be resolved before final mission completion; they do not block the fixture-only C diagnostic. No external data, broker, rights, or production claims are authorized. Before work, each builder must claim its own assigned task through Mycelial. A is a separate research lane; B's ownership may be uncertain after rotation. The coordinator should neither duplicate an active task nor idle C because B is unknown.

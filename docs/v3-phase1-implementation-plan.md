@@ -1,6 +1,6 @@
 # Mycelial v3 Phase 1 implementation plan
 
-**Status:** ready for a single implementing agent; no Mycelial mission or Phase 2 infrastructure for this work. Read [the proposed design](v3-design.md) and [discovery](v3-discovery.md). The operator approved trying Phase 1 while Benny continues independently. This plan is a short work sequence, not a task graph or an additional release-gate catalog.
+**Status (2026-10-12):** Phase 1 implementation complete in `ypyowkkt`; disposable mechanical/decision evaluation recorded in `nymoxoot`. Live effectiveness and Phase 2 need are still unknown. No Mycelial mission or Phase 2 infrastructure was used for this work. Read [the proposed design](v3-design.md) and [discovery](v3-discovery.md). The operator approved trying Phase 1 while Benny continues independently. This plan is a short work sequence, not a task graph or an additional release-gate catalog.
 
 ## Outcome and limits
 
@@ -42,3 +42,11 @@ Use the supported `test` tool for focused coverage, then `build`, `lint`, and `t
 Report the proposed first usable output and next-action decisions in the trial cases, startup input sizes or why they could not be measured, tests and build results, remaining unknowns, and whether Phase 1 appears sufficient to defer Phase 2. Show where the draft design/planning wording lives and recommend whether to make `/mycelial-design` a global Pi prompt after operator evaluation. Do not claim reduced live Benny latency, 37M-token mitigation, or staff-network benefit from an offline trial.
 
 **Stop rather than expand scope** if the replay requires uncaptured historical state, a sandbox denial has no supported Pi tool, or safe startup needs a new protocol mechanism. Report the specific gap and a minimal next decision. No per-slice independent reviews, mandatory approval ledger, or automatic Phase 2 kickoff.
+
+## Phase 1 closeout (2026-10-12)
+
+The single-agent implementation is in `ypyowkkt`: generated mission/launcher and skill guidance favor a bounded handoff, unread mail, source-linked verification and delegated falsifiable tests. [Frozen Benny replay and prompt drafts](v3-phase1-replay.md) and the [disposable trial](v3-phase1-disposable-trial.md) record the evidence and limitations. Synthetic launch/rotation tests cover optional handoff, idempotent restart, retained claims and unread mail. The first unbound subagent decision probe was contaminated by an answer-bearing handoff bootstrap and **excluded**; a later clean, unbound, no-tool Pi session chose the independent lane without that bootstrap. It is one favorable decision probe, not bound coordinator acceptance.
+
+Independent full `build`, focused `lint`, and full `test` passed after the trial: **195 tests, 0 failures, 967 assertions**. No live mission was touched, no operator rotation was invoked, and no sandbox denial occurred. A read-only claim-list tool is absent; the test did not establish a need for one, because unknown ownership can be deferred without blocking a genuinely independent lane. Do not add such a tool solely on this evidence.
+
+**Decision:** close Phase 1 *implementation* without adding speculative protocol machinery. Do **not** conclude that startup context or mission-wide cost improved in a bound long-running mission, that future rotations are uninterrupted, or that Phase 2 is required or unnecessary. The new generated guidance has not been installed for live missions; existing Benny mission controls and launcher are unchanged. Evaluate effectiveness during a later safe rollout/new-mission field trial rather than pausing Benny now solely to manufacture a result. Installing or rotating an existing live mission is separate operator-controlled work.

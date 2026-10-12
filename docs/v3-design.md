@@ -1,6 +1,6 @@
 # Mycelial v3: bounded coordinator attention (design proposal)
 
-**Status:** Phase 1 approved for a bounded implementation/trial under the [Phase 1 plan](v3-phase1-implementation-plan.md); Phase 2 remains conditional and unapproved. Read [v3 discovery](v3-discovery.md) and its [Benny](pm-benny.md) and [Brackets](pm-brackets.md) reports for evidence and limitations. v2 remains the working baseline. Do not change a live mission or add a mailbox privilege on the authority of this document alone.
+**Status:** Phase 1 implementation and disposable evaluation are recorded in the [Phase 1 plan](v3-phase1-implementation-plan.md); live effectiveness is unproven. Phase 2 remains conditional and unapproved. Read [v3 discovery](v3-discovery.md) and its [Benny](pm-benny.md) and [Brackets](pm-brackets.md) reports for evidence and limitations. v2 remains the working baseline. Do not change a live mission or add a mailbox privilege on the authority of this document alone.
 
 ## Decision to test
 

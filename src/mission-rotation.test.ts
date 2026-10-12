@@ -277,6 +277,82 @@ test("rotation preserves durable mail/receipts/claims and fresh picker topology 
     expect(await nodeFileSystem.lstat(session.sessionFile)).toBeDefined();
 });
 
+test("disposable rotation preserves an active claim and independent unread lane without resolving unknown ownership", async () => {
+  const f = await fixture();
+  const active = await f.mailbox.send(f.identity("coordinator"), {
+    to: "builder",
+    body: "Lane A: exclusive builder experiment",
+  });
+  const claims = new ProjectionStore(nodeFileSystem, f.mission, systemClock, {
+    retries: 0,
+    backoffMs: 1,
+  });
+  expect(
+    (await claims.claim(f.identity("builder"), active.message.id, 60_000))
+      .outcome
+  ).toBe("claimed");
+  const unknown = await f.mailbox.send(f.identity("reviewer"), {
+    to: "coordinator",
+    body: "Lane B: prior owner cannot be verified; do not reassign blindly",
+  });
+  const independent = await f.mailbox.send(f.identity("reviewer"), {
+    to: "coordinator",
+    body: "Lane C: independently claimable read-only verification",
+  });
+  const before = await preflightRotation(nodeFileSystem, {
+    ...f.input,
+    saveHistory: true,
+  });
+  expect(before.refusals).toEqual([]);
+  expect(before.liveClaims.map((claim) => claim.task)).toEqual([
+    taskId(active.message.id),
+  ]);
+  expect(before.unread.coordinator).toEqual([
+    unknown.message.id,
+    independent.message.id,
+  ]);
+  const oldClaim = await readFile(
+    f.mission.paths.claim(taskId(active.message.id))
+  );
+  expect(
+    (
+      await rotateMission(
+        nodeFileSystem,
+        { ...f.input, saveHistory: true },
+        operator()
+      )
+    ).state
+  ).toBe("committed");
+  const fresh = (await loadMission(nodeFileSystem, f.initialized.directory))
+    .sessions;
+  if (!fresh) throw new Error("Missing replacement sessions");
+  expect(fresh.sessions.coordinator.sessionId).not.toBe(
+    f.old.sessions.coordinator.sessionId
+  );
+  expect(
+    await readFile(f.mission.paths.claim(taskId(active.message.id)))
+  ).toEqual(oldClaim);
+  const coordinator = {
+    ...f.identity("coordinator"),
+    session: fresh.sessions.coordinator.sessionId,
+  };
+  expect(
+    (await f.mailbox.read(coordinator)).messages.map((message) => message.id)
+  ).toEqual([unknown.message.id, independent.message.id]);
+  expect((await f.mailbox.read(coordinator)).messages).toEqual([]);
+  const builder = {
+    ...f.identity("builder"),
+    session: fresh.sessions.builder.sessionId,
+  };
+  expect((await claims.claim(builder, active.message.id, 60_000)).outcome).toBe(
+    "contended"
+  );
+  // No claim file for B is not evidence that its previous owner has stopped.
+  await expect(
+    nodeFileSystem.lstat(f.mission.paths.claim(taskId(unknown.message.id)))
+  ).rejects.toMatchObject({ code: "ENOENT" });
+});
+
 test("default cleanup deletes exactly the verified old family, descendants first, and never unrelated sessions", async () => {
   const f = await fixture();
   const direct = join(f.input.defaultSessionRoot, "child.jsonl");
