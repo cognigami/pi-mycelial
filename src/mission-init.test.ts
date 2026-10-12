@@ -57,6 +57,10 @@ test("initializes mission controls and an executable multi-tab launcher", async 
     expect(mission).toContain(
       "Every deliverable and acceptance check in the approved source artifact"
     );
+    expect(mission).toContain("truthful interim outputs");
+    expect(mission).toContain("current handoff");
+    expect(mission).toContain("if active ownership cannot be verified");
+    expect(mission).not.toContain("every canonical artifact before acting");
     expect(JSON.parse(await readFile(result.agentsFile, "utf8"))).toEqual({
       agents: [
         { role: "coordinator", capability: "coordinator" },
@@ -91,6 +95,8 @@ test("initializes mission controls and an executable multi-tab launcher", async 
     expect(guidance).toContain("# Project Guidance");
     expect(guidance).toContain("Do not use `/tmp` for mission work");
     expect(guidance).toContain("Treat a sandbox denial as a workflow error");
+    expect(guidance).toContain("Use `agent_*` for mission state");
+    expect(guidance).toContain("current handoff");
 
     const launcher = await readFile(result.launcherFile, "utf8");
     expect(launcher).toContain("herdr tab create");
@@ -98,6 +104,12 @@ test("initializes mission controls and an executable multi-tab launcher", async 
     expect(launcher).toContain("--presets:preset");
     expect(launcher).toContain("agent_mission_read");
     expect(launcher).toContain("Reconcile mission $MISSION_ID idempotently");
+    expect(launcher).toContain("bounded unread mail");
+    expect(launcher).toContain("no read-only claim-list tool");
+    expect(launcher).toContain("defer potentially duplicate assignments");
+    expect(launcher).toContain("missing or stale");
+    expect(launcher).toContain("falsifiable");
+    expect(launcher).not.toContain("read canonical artifacts, refresh");
     expect(launcher).toContain("Durable send automatically notifies");
     expect(launcher).toContain("follow repository AGENTS.md");
     expect(launcher).toContain("repo'\"'\"'s work");
@@ -202,7 +214,7 @@ printf '{"result":{}}\\n'
     expect(calls).toContain(`agent prompt ${coordinatorAgent}`);
     expect(calls).toContain("Reconcile mission live-test idempotently");
     expect(calls).toContain(
-      "deliverable, exclusive mutating path scope, validation, reporting boundary, and stop condition"
+      "deliverable, exclusive mutating path scope, validation, reporting boundary, stop condition"
     );
     expect(calls).toContain(
       "Reserve P0 for genuine emergencies, never routine progress"
@@ -254,6 +266,8 @@ printf '{"result":{}}\\n'
     expect(calls).toContain(`agent prompt ${reviewerAgent}`);
     expect(calls).toContain("Resume as participant reviewer");
     expect(calls).toContain("after your own claim succeeds");
+    expect(calls).toContain("hypothesis, falsifier");
+    expect(calls).toContain("dedicated Pi tools");
     expect(calls).toContain("Never inherit an old session's live claim");
     expect(calls).toContain("stop at the assignment boundary");
 

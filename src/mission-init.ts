@@ -308,7 +308,10 @@ function missionTemplate(
   );
   const coordination = hasCoordinator
     ? [
-        "- The coordinator decomposes the mission and its canonical artifacts into independently claimable requests, sends those requests through Mycelial, tracks blockers, and accepts final results.",
+        "- The coordinator owns priorities, assignments, acceptance, and the next useful real-input output. At uncertainty affecting that output, choose or delegate a falsifiable hypothesis: expected result, contradiction, smallest authorized test, and permitted claim. Prefer that test over another abstract gate; keep independent lanes moving while an external dependency waits.",
+        "- Delegate bounded tests and discretionary follow-up within the assignment's path, authority, and stop boundaries. A builder reports observation, contradiction, and next recommendation; provisional assumptions never expand source rights, broker exposure, or release authority. Ask the operator for external access or decisions outside delegated authority.",
+        "- A review or gate must protect a named boundary or change the next usable output. If the approved plan prohibits a proposed test, request a narrow amendment instead of silently changing scope.",
+        "- Create independently claimable requests only after checking active ownership; track blockers and accept final results.",
         "- Other roles acknowledge and claim a request before working, then report results and validation through the original thread before releasing the claim.",
         "- Durable send and reply automatically attempt to wake delivered recipients. Use `agent_wake` only to retry a notification failure reported by those tools.",
       ]
@@ -337,13 +340,17 @@ ${participants.map(roleResponsibility).join("\n")}
 ## Coordination
 
 - Load the \`mycelial-coordination\` skill.
-- Read this mission and every canonical artifact before acting.
-- Refresh the roster and check durable mail before starting work.
+- Read this mission and repository \`AGENTS.md\`. On startup or rotation, use the short current handoff at the front of the existing repository execution/status document when present; do not replay historical mail or read the whole plan and design by default. With no handoff, start from mission instructions, bounded unread mail, and live ownership; locate the relevant status or source artifact only as needed.
+- The current handoff is a skimmable index, not proof: next useful output and permitted claim; lane owners, next actions, external dependencies and independent work; pending decisions and contradictions; last real-input result with source pointer; provisional assumptions, falsifiers and forbidden claims. Refresh it at meaningful decision/integration boundaries, without a new status file or database.
+- Refresh the roster and read bounded new/unread mail. Reconcile ownership against available source mail, receipts and named participants before assigning work; roster presence and a handoff do not prove a claim is free. There is no read-only claim-list tool: if active ownership cannot be verified, mark it unknown and defer any potentially duplicate assignment. A missing, stale, or contradictory handoff requires targeted verification of affected assertions or an explicit unknown; never infer completion from a summary.
+- Use \`agent_*\` for mission state and dedicated Pi tools for supported repository, VC, scratch, and browser work. Do not shell into external mission storage, write mission scratch to \`/tmp\`, or route around sandbox denials. If no configured tool fits, stop that operation and report the missing access.
 ${coordination.join("\n")}
 
 ## Exit criterion
 
 ${exitCriterion}
+
+This final completion boundary does not forbid truthful interim outputs with narrower claims; unfinished requirements still block the particular feature or claim that depends on them.
 `;
 }
 
@@ -375,6 +382,7 @@ function repositoryGuidanceTemplate(): string {
 - Keep durable designs, plans, and engineering decisions in repository Markdown files.
 - Document the repository's supported build, test, lint, and formatting commands here before relying on them.
 - Do not invent project commands; ask the operator when the supported workflow is unclear.
+- Use \`agent_*\` for mission state and dedicated Pi tools for repository, VC, scratch, and browser operations when provided; never shell into external mission storage.
 - Do not use \`/tmp\` for mission work; keep scratch artifacts in repository-approved locations or use a dedicated Pi scratch tool.
 - Treat a sandbox denial as a workflow error. Do not bypass it through alternate commands, paths, shells, or wrappers; use the dedicated Pi tool, or stop and report the blocker.
 
@@ -383,6 +391,7 @@ function repositoryGuidanceTemplate(): string {
 - Load the \`mycelial-coordination\` skill when working in a bound Mycelial mission.
 - Call \`agent_mission_read\`, refresh \`agent_roster\`, and read \`agent_mail_read\` before starting mission work.
 - Treat durable mail as coordination truth and use claims for exclusive work ownership.
+- Keep a short current handoff at the front of an existing execution/status document when one exists; it is an index with source pointers, not completion evidence. Verify stale or disputed claims at their source.
 `;
 }
 
@@ -620,7 +629,7 @@ if ((\${#STARTED_ROLES[@]} > 0)); then
   for role in "\${STARTED_ROLES[@]}"; do
     if [[ "$role" == "coordinator" ]]; then
       herdr agent prompt "$(herdr_name_for_role "$role")" \
-        "Reconcile mission $MISSION_ID idempotently. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, read canonical artifacts, refresh agent_roster, read durable mail, requests, receipts, and claims, and create assignments only where durable state requires them. Give each assignment a deliverable, exclusive mutating path scope, validation, reporting boundary, and stop condition. Reserve P0 for genuine emergencies, never routine progress. Check mail at atomic boundaries, not in a polling loop. Never blindly repeat mission decomposition. Durable send automatically notifies recipients; use agent_wake only to retry a reported failure. Do not implement worker tasks." \
+        "Reconcile mission $MISSION_ID idempotently. Load the mycelial-coordination skill and agent_mission_read; follow repository AGENTS.md. Use the current handoff at the front of an existing execution/status document if present, then refresh agent_roster and read bounded unread mail. Reconcile ownership using available source mail, receipts and named participants; there is no read-only claim-list tool. If active ownership remains unknown, defer potentially duplicate assignments. For missing or stale handoff assertions, verify specific source artifacts or mark unknown. Do not replay historical mail or read every canonical artifact by default. Choose the next useful real-input output and its permitted claim; commission a falsifiable bounded test before another abstract gate when authorized. Preserve final acceptance and operator/safety boundaries. Give each assignment a deliverable, exclusive mutating path scope, validation, reporting boundary, stop condition, hypothesis and falsifier where uncertain. Use agent_* for mission state and dedicated Pi tools for supported operations; no shell access to external mission storage, no /tmp mission scratch and no sandbox-denial workarounds. Reserve P0 for genuine emergencies, never routine progress. Check mail at atomic boundaries, not in a polling loop. Never blindly repeat mission decomposition. Durable send automatically notifies recipients; use agent_wake only to retry a reported failure. Do not implement worker tasks." \
         --wait --timeout 120000
       break
     fi
@@ -628,7 +637,7 @@ if ((\${#STARTED_ROLES[@]} > 0)); then
   if [[ "$coordinator_selected" == "false" ]]; then
     for role in "\${STARTED_ROLES[@]}"; do
       herdr agent prompt "$(herdr_name_for_role "$role")" \
-        "Resume as participant $role for mission $MISSION_ID. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, refresh agent_roster, read durable mail and current claims, continue only bounded durable assigned work after your own claim succeeds, report validation through its thread, release the claim, and stop at the assignment boundary. Never inherit an old session's live claim. Reserve P0 for genuine emergencies, never routine progress; check mail at atomic boundaries, not in a polling loop. Otherwise report ready and wait."
+        "Resume as participant $role for mission $MISSION_ID. Load the mycelial-coordination skill and agent_mission_read, follow repository AGENTS.md, refresh agent_roster, read bounded unread mail and your own assigned request, continue only bounded durable assigned work after your own claim succeeds. Within assignment authority, test the hypothesis, falsifier and smallest authorized input; report observation, contradiction, permitted claim and next recommendation through its thread, release the claim, and stop at the assignment boundary. Do not expand broker, data-rights or release authority; use agent_* for mission state and dedicated Pi tools for supported work, not shell access to mission storage or /tmp mission scratch; stop on unsupported sandbox denial. Never inherit an old session's live claim. Reserve P0 for genuine emergencies, never routine progress; check mail at atomic boundaries, not in a polling loop. Otherwise report ready and wait."
     done
   fi
 fi
