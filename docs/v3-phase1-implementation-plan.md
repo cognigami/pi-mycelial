@@ -1,6 +1,6 @@
 # Mycelial v3 Phase 1 implementation plan
 
-**Status (2026-10-12):** Phase 1 implementation complete in `ypyowkkt`; disposable mechanical/decision evaluation recorded in `nymoxoot`. Live effectiveness and Phase 2 need are still unknown. No Mycelial mission or Phase 2 infrastructure was used for this work. Read [the proposed design](v3-design.md) and [discovery](v3-discovery.md). The operator approved trying Phase 1 while Benny continues independently. This plan is a short work sequence, not a task graph or an additional release-gate catalog.
+**Status (2026-10-12):** Phase 1 implementation complete in `ypyowkkt`; mechanical/decision evaluation recorded in `nymoxoot`. Phase 1 is installed and [bound disposable acceptance](v3-phase1-bound-acceptance.md) has run through two operator-controlled rotations. Effectiveness and mission-wide cost in a long-running mission remain unknown; Phase 2 is conditional. Benny's existing mission controls were not regenerated or rotated. Read [the proposed design](v3-design.md) and [discovery](v3-discovery.md). This plan is a short work sequence, not a task graph or an additional release-gate catalog.
 
 ## Outcome and limits
 
@@ -50,3 +50,7 @@ The single-agent implementation is in `ypyowkkt`: generated mission/launcher and
 Independent full `build`, focused `lint`, and full `test` passed after the trial: **195 tests, 0 failures, 967 assertions**. No live mission was touched, no operator rotation was invoked, and no sandbox denial occurred. A read-only claim-list tool is absent; the test did not establish a need for one, because unknown ownership can be deferred without blocking a genuinely independent lane. Do not add such a tool solely on this evidence.
 
 **Decision:** close Phase 1 *implementation* without adding speculative protocol machinery. Do **not** conclude that startup context or mission-wide cost improved in a bound long-running mission, that future rotations are uninterrupted, or that Phase 2 is required or unnecessary. The new generated guidance has not been installed for live missions; existing Benny mission controls and launcher are unchanged. Evaluate effectiveness during a later safe rollout/new-mission field trial rather than pausing Benny now solely to manufacture a result. Installing or rotating an existing live mission is separate operator-controlled work.
+
+## Post-install disposable acceptance
+
+The operator subsequently provided an installation window and performed two rotations of a separate synthetic mission. The first bound coordinator advanced a fixture-only independent lane while B ownership was unknown; the second recognized a stale handoff, did not duplicate C or the still-exclusive old-session A claim, and deferred B pending evidence. See [the bound acceptance record](v3-phase1-bound-acceptance.md) for session IDs, startup request sizes, limitations, and the expired A lease on the first rotation. This supports keeping Phase 2 deferred, **not** a claim that long-running startup context, latency or total cost is reduced. Benny remains unchanged and has not been used as the acceptance mission.
