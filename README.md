@@ -11,11 +11,40 @@ just build
 just install
 ```
 
-Installation also puts a single `rotate` executable in `~/mycelial`, beside the
-`missions/` directory. Invoke it by path from any directory; no `PATH` setup or
-runtime dependency installation is needed.
+Installation also puts standalone `rotate` and `uninstall` executables in
+`~/mycelial`, beside the `missions/` directory. Invoke them by path from any
+directory; no `PATH` setup or runtime dependency installation is needed.
 
 The managed artifact is `dist/index.js`. Set `PI_CODING_AGENT_DIR` to install into an isolated Pi agent directory. The package also declares the neutral `mycelial-coordination` skill through standard `pi.skills`; pi-extension-kit installs and contributes it only while the managed extension is enabled and loaded. A loaded but unbound extension may advertise the skill, but its procedures apply only when Mycelial tools are available or a mission has been declared.
+
+## Uninstall and reinstall
+
+Stop all Mycelial agents, then run from an independent interactive operator shell:
+
+```sh
+~/mycelial/uninstall
+```
+
+After confirming uninstall, it asks separately whether to permanently remove
+configuration and **all missions under the configured `missionRoot`**. Press Enter
+to keep either. It resolves mission storage before removing configuration; if
+configuration cannot be loaded, it warns and leaves mission data alone. Broad
+paths and deletion overlapping data you chose to keep are refused before any
+removal. There is no unattended `--yes` option. Ctrl+C or EOF during the prompts
+cancels without deleting anything.
+
+It removes the managed Mycelial extension (including its skill), its package
+link, Mycelial state/logs/cache, `rotate`, and `uninstall` itself. The install
+directory is removed only if empty. Shared extension-kit/runtime files, Pi
+conversation history, source checkouts, repository launcher symlinks and
+`AGENTS.md` are left untouched. Deleting missions leaves their repository launcher
+symlinks dangling; these launchers are not recreated by package installation.
+
+Use the same `PI_CODING_AGENT_DIR` and `PI_EXTENSIONS_*`/`XDG_*` environment as the
+installation/runtime when invoking the uninstaller. Restart Pi afterward.
+Reinstall from this source checkout with `just install`, then restart Pi: the
+extension, skill, `rotate`, and `uninstall` all return. Deleted configuration and
+mission data do **not** return.
 
 ## Mission setup
 

@@ -13,10 +13,14 @@ sync:
 build: clean compile test lint
   {{bun}} {{tooling}} package
   just --justfile '{{justfile()}}' build-rotate
+  just --justfile '{{justfile()}}' build-uninstall
 
 # Standalone operator executable, using the sibling webgrab build pattern.
 build-rotate output="cli-dist/rotate":
   {{bun}} build --compile --no-compile-autoload-dotenv --no-compile-autoload-bunfig src/rotate.ts --outfile '{{output}}'
+
+build-uninstall output="cli-dist/uninstall":
+  {{bun}} build --compile --no-compile-autoload-dotenv --no-compile-autoload-bunfig src/uninstall.ts --outfile '{{output}}'
 
 clean: sync
   {{bun}} {{tooling}} clean
@@ -27,10 +31,15 @@ compile: sync
 install: build
   {{bun}} {{tooling}} install
   just --justfile '{{justfile()}}' install-rotate
+  just --justfile '{{justfile()}}' install-uninstall
 
 install-rotate directory=(env_var("HOME") / "mycelial"):
   mkdir -p '{{directory}}'
   install -m 755 cli-dist/rotate '{{directory}}/rotate'
+
+install-uninstall directory=(env_var("HOME") / "mycelial"):
+  mkdir -p '{{directory}}'
+  install -m 755 cli-dist/uninstall '{{directory}}/uninstall'
 
 [script]
 lint *paths: sync

@@ -98,11 +98,12 @@ export function formatRotationReport(
 }
 export function requireOperatorShell(
   env: NodeJS.ProcessEnv,
-  tty: boolean
+  tty: boolean,
+  operation = "Rotation/recovery"
 ): void {
   if (!tty)
     throw new ValidationError(
-      "Rotation/recovery requires an interactive operator TTY; no unattended confirmation bypass"
+      `${operation} requires an interactive operator TTY; no unattended confirmation bypass`
     );
   if (
     env.PI_CODING_AGENT === "true" ||
