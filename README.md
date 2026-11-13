@@ -7,9 +7,13 @@ A durable, local mission mailbox and task-claim Pi extension. Mycelial stores im
 ## Install
 
 ```sh
-just build
 just install
 ```
+
+`just install` builds and runs automated tests and lint before installing.
+Tests never prompt the operator: CLI tests use noninteractive subprocesses and
+isolated data paths; uninstall decisions are tested with scripted answers, not
+the operator's terminal.
 
 Installation also puts standalone `rotate` and `uninstall` executables in
 `~/mycelial`, beside the `missions/` directory. Invoke them by path from any

@@ -13,12 +13,7 @@ import {
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import {
-  planUninstall,
-  runUninstall,
-  type UninstallPlan,
-  uninstall,
-} from "./uninstall";
+import { planUninstall, type UninstallPlan, uninstall } from "./uninstall";
 
 async function fixture() {
   const root = await mkdtemp(resolve("node_modules/.mycelial-uninstall-"));
@@ -339,12 +334,40 @@ test("installed compiled uninstaller works without runtime dependencies; recipes
   }
 });
 
-test("CLI rejects unsupported flags and noninteractive/agent use before filesystem changes", async () => {
-  await expect(runUninstall(["--yes"])).rejects.toThrow(
-    "Unknown uninstall option"
-  );
-  await expect(runUninstall(["--help", "--yes"])).rejects.toThrow(
-    "Unknown uninstall option"
-  );
-  await expect(runUninstall([])).rejects.toThrow();
-});
+test.each([
+  { args: ["--yes"], error: "Unknown uninstall option" },
+  { args: ["--help", "--yes"], error: "Unknown uninstall option" },
+  { args: [], error: "Uninstall requires an interactive operator TTY" },
+])(
+  "CLI refuses $args without prompts or filesystem changes",
+  async ({ args, error }) => {
+    const f = await fixture();
+    try {
+      // execFile uses pipes, never the operator's terminal. Isolate all data paths
+      // as well: CLI tests must not inherit the runner's home or Pi environment.
+      await expect(
+        promisify(execFile)(
+          process.execPath,
+          [resolve("src/uninstall.ts"), ...args],
+          {
+            cwd: f.homeDir,
+            env: { ...f.env, HOME: f.homeDir, PATH: process.env.PATH },
+            timeout: 2_000,
+          }
+        )
+      ).rejects.toMatchObject({
+        code: 1,
+        stdout: "",
+        stderr: expect.stringContaining(error),
+      });
+      for (const { path } of f.plan.automatic)
+        expect(await lstat(path)).toBeDefined();
+      expect(await readdir(f.plan.configDirectory)).toEqual(["10-main.jsonc"]);
+      expect(
+        await readFile(join(f.plan.missionDirectory as string, "mail"), "utf8")
+      ).toBe("durable data");
+    } finally {
+      await rm(f.root, { recursive: true, force: true });
+    }
+  }
+);
