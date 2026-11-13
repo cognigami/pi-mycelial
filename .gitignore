@@ -2,3 +2,6 @@ node_modules/
 dist/
 cli-dist/
 *.tsbuildinfo
+
+# Local disposable acceptance fixture (may contain an expired mission launcher).
+/examples/.v3p1-accept-f04578a3/
